@@ -10,11 +10,9 @@ async fn wait_for_ack(
       Err(err) => fail(err.message())
     }
     for event in events {
-      if event is @mqtt.SessionEvent::AcknowledgedEvent(
-        packet_type,
-        _,
-        reason_code,
-      ) && packet_type == kind {
+      if event
+        is @mqtt.SessionEvent::AcknowledgedEvent(packet_type, _, reason_code) &&
+        packet_type == kind {
         if reason_code < 0x80 {
           acknowledged = true
         } else {
