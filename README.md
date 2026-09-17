@@ -52,7 +52,7 @@ moon update
 moon test --target native
 ```
 
-公开仓库建立后会在 `moon.mod` 中补充仓库地址；在此之前可直接使用当前源码。
+公开仓库：<https://github.com/lkjhgbnm097/moonmqtt>。
 
 ## 快速体验
 

@@ -4,6 +4,8 @@
 
 MoonMQTT：跨 Native、JavaScript 与 WebAssembly 的 MQTT 5.0 协议工具包和客户端。
 
+公开仓库：<https://github.com/lkjhgbnm097/moonmqtt>
+
 ## 二、项目简介
 
 MoonMQTT 使用 MoonBit 实现 MQTT 5.0 报文编解码、属性校验、流式解析、客户端会话
