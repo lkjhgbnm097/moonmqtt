@@ -1,0 +1,9 @@
+import {
+  "moonmqtt/moonmqtt" @mqtt,
+  "moonmqtt/moonmqtt/native",
+  "moonbitlang/async",
+}
+
+supported_targets = "+native"
+
+pkgtype(kind: "executable")

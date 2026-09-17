@@ -1,0 +1,5 @@
+import {
+  "moonmqtt/moonmqtt" @mqtt,
+}
+
+pkgtype(kind: "executable")

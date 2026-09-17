@@ -1,0 +1,11 @@
+import {
+  "moonmqtt/moonmqtt" @mqtt,
+  "moonbitlang/async/socket",
+  "moonbitlang/async/tls",
+}
+
+import {
+  "moonbitlang/async",
+} for "test"
+
+supported_targets = "+native"

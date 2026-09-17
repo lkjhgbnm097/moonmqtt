@@ -1,0 +1,16 @@
+MoonMQTT
+Copyright 2026 MoonMQTT contributors
+
+This product implements the OASIS MQTT Version 5.0 protocol specification:
+https://docs.oasis-open.org/mqtt/mqtt/v5.0/mqtt-v5.0.html
+
+Normative protocol names, field identifiers, reason codes, packet layouts, and
+behavioral requirements are derived from that public standard. MQTT is a
+trademark of the OASIS Open standards consortium; this project is not endorsed
+or certified by OASIS.
+
+The Native transport uses moonbitlang/async, licensed under Apache-2.0:
+https://github.com/moonbitlang/async
+
+MoonMQTT is an original MoonBit implementation. No source code from another
+MQTT client implementation is included.

@@ -1,0 +1,279 @@
+// Generated using `moon info`, DON'T EDIT IT
+package "moonmqtt/moonmqtt"
+
+import {
+  "moonbitlang/core/debug",
+}
+
+// Values
+pub const MAX_VARIABLE_BYTE_INTEGER : Int = 268435455
+
+pub const PROTOCOL_LEVEL : Int = 5
+
+pub fn decode_exact_packet(Bytes) -> Result[Packet, MqttError]
+
+pub fn decode_hex(String) -> Result[Bytes, MqttError]
+
+pub fn decode_mqtt_utf8(Bytes) -> Result[String, MqttError]
+
+pub fn decode_packet(Bytes) -> Result[(Packet, Int), MqttError]
+
+pub fn encode_hex(Bytes) -> String
+
+pub fn encode_mqtt_utf8(String) -> Result[Bytes, MqttError]
+
+pub fn encode_packet(Packet) -> Result[Bytes, MqttError]
+
+pub fn encode_variable_byte_integer(Int) -> Result[Bytes, MqttError]
+
+// Errors
+
+// Types and methods
+pub(all) struct AuthPacket {
+  reason_code : Byte
+  properties : Array[Property]
+} derive(Eq, @debug.Debug)
+
+pub struct ClientSession {
+  mut state : ConnectionState
+  mut next_packet_id : Int
+  mut ping_outstanding : Bool
+  inflight : Array[Inflight]
+  incoming_qos2 : Array[PublishPacket]
+}
+pub fn ClientSession::begin_connect(Self, ConnectPacket) -> Result[Packet, MqttError]
+pub fn ClientSession::handle_incoming(Self, Packet) -> Result[SessionOutcome, MqttError]
+pub fn ClientSession::has_ping_outstanding(Self) -> Bool
+pub fn ClientSession::inflight_count(Self) -> Int
+pub fn ClientSession::mark_transport_closed(Self) -> Unit
+pub fn ClientSession::new() -> Self
+pub fn ClientSession::prepare_disconnect(Self, reason_code? : Byte, properties? : Array[Property]) -> Result[Packet, MqttError]
+pub fn ClientSession::prepare_ping(Self) -> Result[Packet, MqttError]
+pub fn ClientSession::prepare_publish(Self, String, Bytes, qos? : QoS, retain? : Bool, properties? : Array[Property]) -> Result[Packet, MqttError]
+pub fn ClientSession::prepare_subscribe(Self, Array[Subscription], properties? : Array[Property]) -> Result[Packet, MqttError]
+pub fn ClientSession::prepare_unsubscribe(Self, Array[String], properties? : Array[Property]) -> Result[Packet, MqttError]
+pub fn ClientSession::retransmit_inflight(Self) -> Array[Packet]
+pub fn ClientSession::state(Self) -> ConnectionState
+
+pub(all) struct ConnAckPacket {
+  session_present : Bool
+  reason_code : Byte
+  properties : Array[Property]
+} derive(Eq, @debug.Debug)
+
+pub(all) struct ConnectPacket {
+  client_id : String
+  clean_start : Bool
+  keep_alive : UInt16
+  username : String?
+  password : Bytes?
+  will : WillMessage?
+  properties : Array[Property]
+} derive(Eq, @debug.Debug)
+pub fn ConnectPacket::new(String, clean_start? : Bool, keep_alive? : UInt16) -> Self
+
+pub(all) enum ConnectionState {
+  Disconnected
+  AwaitingConnAck
+  Connected
+  Disconnecting
+} derive(Eq, @debug.Debug)
+
+pub(all) struct DisconnectPacket {
+  reason_code : Byte
+  properties : Array[Property]
+} derive(Eq, @debug.Debug)
+
+pub(all) struct FixedHeader {
+  packet_type : PacketType
+  flags : Int
+  remaining_length : Int
+} derive(Eq, @debug.Debug)
+
+pub struct Inflight {
+  packet_id : UInt16
+  stage : InflightStage
+  packet : Packet
+}
+
+pub enum InflightStage {
+  AwaitingPubAck
+  AwaitingPubRec
+  AwaitingPubComp
+  AwaitingSubAck
+  AwaitingUnsubAck
+} derive(Eq, @debug.Debug)
+
+pub(all) enum MqttError {
+  NeedMoreData
+  MalformedPacket(String)
+  InvalidPacketType(Int)
+  InvalidFlags(PacketType, Int)
+  InvalidQoS(Int)
+  InvalidProperty(Int)
+  InvalidPropertyValue(Int, String)
+  InvalidUtf8(String)
+  ValueOutOfRange(String, Int)
+  ProtocolViolation(String)
+  InvalidState(String)
+  ConnectionRejected(Byte, Array[Property])
+} derive(Eq, @debug.Debug)
+pub fn MqttError::message(Self) -> String
+
+pub(all) enum Packet {
+  ConnectPacket(ConnectPacket)
+  ConnAckPacket(ConnAckPacket)
+  PublishPacket(PublishPacket)
+  PubResponsePacket(PubResponsePacket)
+  SubscribePacket(SubscribePacket)
+  SubAckPacket(SubAckPacket)
+  UnsubscribePacket(UnsubscribePacket)
+  UnsubAckPacket(UnsubAckPacket)
+  PingReqPacket
+  PingRespPacket
+  DisconnectPacket(DisconnectPacket)
+  AuthPacket(AuthPacket)
+} derive(Eq, @debug.Debug)
+
+pub struct PacketStreamDecoder {
+  mut buffered : Array[Byte]
+}
+pub fn PacketStreamDecoder::buffered_bytes(Self) -> Int
+pub fn PacketStreamDecoder::feed(Self, Bytes) -> Result[Array[Packet], MqttError]
+pub fn PacketStreamDecoder::new() -> Self
+pub fn PacketStreamDecoder::reset(Self) -> Unit
+
+pub(all) enum PacketType {
+  Connect
+  ConnAck
+  Publish
+  PubAck
+  PubRec
+  PubRel
+  PubComp
+  Subscribe
+  SubAck
+  Unsubscribe
+  UnsubAck
+  PingReq
+  PingResp
+  Disconnect
+  Auth
+} derive(Eq, @debug.Debug)
+pub fn PacketType::code(Self) -> Int
+pub fn PacketType::from_code(Int) -> Result[Self, MqttError]
+pub fn PacketType::name(Self) -> String
+
+pub(all) enum Property {
+  PayloadFormatIndicator(Byte)
+  MessageExpiryInterval(UInt)
+  ContentType(String)
+  ResponseTopic(String)
+  CorrelationData(Bytes)
+  SubscriptionIdentifier(Int)
+  TopicAlias(UInt16)
+  UserProperty(String, String)
+  SessionExpiryInterval(UInt)
+  WillDelayInterval(UInt)
+  AssignedClientIdentifier(String)
+  ServerKeepAlive(UInt16)
+  AuthenticationMethod(String)
+  AuthenticationData(Bytes)
+  RequestProblemInformation(Byte)
+  RequestResponseInformation(Byte)
+  ResponseInformation(String)
+  ServerReference(String)
+  ReasonString(String)
+  ReceiveMaximum(UInt16)
+  TopicAliasMaximum(UInt16)
+  MaximumQoS(Byte)
+  RetainAvailable(Byte)
+  MaximumPacketSize(UInt)
+  WildcardSubscriptionAvailable(Byte)
+  SubscriptionIdentifierAvailable(Byte)
+  SharedSubscriptionAvailable(Byte)
+} derive(Eq, @debug.Debug)
+
+pub(all) struct PubResponsePacket {
+  kind : PacketType
+  packet_id : UInt16
+  reason_code : Byte
+  properties : Array[Property]
+} derive(Eq, @debug.Debug)
+
+pub(all) struct PublishPacket {
+  topic : String
+  payload : Bytes
+  qos : QoS
+  retain : Bool
+  duplicate : Bool
+  packet_id : UInt16?
+  properties : Array[Property]
+} derive(Eq, @debug.Debug)
+pub fn PublishPacket::new(String, Bytes, qos? : QoS, retain? : Bool, duplicate? : Bool, packet_id? : UInt16?) -> Self
+
+pub(all) enum QoS {
+  AtMostOnce
+  AtLeastOnce
+  ExactlyOnce
+} derive(Eq, @debug.Debug)
+pub fn QoS::from_int(Int) -> Result[Self, MqttError]
+pub fn QoS::to_int(Self) -> Int
+
+pub(all) enum SessionEvent {
+  ConnectedEvent(Bool, Array[Property])
+  MessageEvent(PublishPacket)
+  AcknowledgedEvent(PacketType, UInt16, Byte)
+  DisconnectedEvent(Byte, Array[Property])
+  AuthEvent(AuthPacket)
+} derive(Eq, @debug.Debug)
+
+pub(all) struct SessionOutcome {
+  responses : Array[Packet]
+  events : Array[SessionEvent]
+} derive(Eq, @debug.Debug)
+
+pub(all) struct SubAckPacket {
+  packet_id : UInt16
+  reason_codes : Array[Byte]
+  properties : Array[Property]
+} derive(Eq, @debug.Debug)
+
+pub(all) struct SubscribePacket {
+  packet_id : UInt16
+  subscriptions : Array[Subscription]
+  properties : Array[Property]
+} derive(Eq, @debug.Debug)
+
+pub(all) struct Subscription {
+  topic_filter : String
+  qos : QoS
+  no_local : Bool
+  retain_as_published : Bool
+  retain_handling : Int
+} derive(Eq, @debug.Debug)
+pub fn Subscription::new(String, qos? : QoS) -> Self
+
+pub(all) struct UnsubAckPacket {
+  packet_id : UInt16
+  reason_codes : Array[Byte]
+  properties : Array[Property]
+} derive(Eq, @debug.Debug)
+
+pub(all) struct UnsubscribePacket {
+  packet_id : UInt16
+  topic_filters : Array[String]
+  properties : Array[Property]
+} derive(Eq, @debug.Debug)
+
+pub(all) struct WillMessage {
+  topic : String
+  payload : Bytes
+  qos : QoS
+  retain : Bool
+  properties : Array[Property]
+} derive(Eq, @debug.Debug)
+
+// Type aliases
+
+// Traits

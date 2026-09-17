@@ -1,0 +1,15 @@
+* text=auto
+
+*.mbt text eol=lf
+*.mbti text eol=lf
+*.pkg text eol=lf
+*.md text eol=lf
+*.yml text eol=lf
+*.yaml text eol=lf
+*.sh text eol=lf
+.gitattributes text eol=lf
+.gitignore text eol=lf
+.githooks/* text eol=lf
+moon.mod text eol=lf
+LICENSE text eol=lf
+NOTICE text eol=lf

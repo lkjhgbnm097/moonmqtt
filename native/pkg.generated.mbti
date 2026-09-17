@@ -1,0 +1,50 @@
+// Generated using `moon info`, DON'T EDIT IT
+package "moonmqtt/moonmqtt/native"
+
+import {
+  "moonbitlang/async/socket",
+  "moonbitlang/async/tls",
+  "moonmqtt/moonmqtt",
+}
+
+// Values
+
+// Errors
+
+// Types and methods
+pub struct NativeClient {
+  transport : NativeTransport
+  session : @moonmqtt.ClientSession
+  decoder : @moonmqtt.PacketStreamDecoder
+  read_chunk_size : Int
+  mut closed : Bool
+}
+pub fn NativeClient::close(Self) -> Unit
+pub async fn NativeClient::connect(NativeOptions, @moonmqtt.ConnectPacket) -> Result[Self, @moonmqtt.MqttError]
+pub async fn NativeClient::disconnect(Self, reason_code? : Byte, properties? : Array[@moonmqtt.Property]) -> Result[Unit, @moonmqtt.MqttError]
+pub fn NativeClient::is_closed(Self) -> Bool
+pub async fn NativeClient::ping(Self) -> Result[Unit, @moonmqtt.MqttError]
+pub async fn NativeClient::publish(Self, String, Bytes, qos? : @moonmqtt.QoS, retain? : Bool, properties? : Array[@moonmqtt.Property]) -> Result[Unit, @moonmqtt.MqttError]
+pub async fn NativeClient::receive(Self) -> Result[Array[@moonmqtt.SessionEvent], @moonmqtt.MqttError]
+pub async fn NativeClient::send(Self, @moonmqtt.Packet) -> Result[Unit, @moonmqtt.MqttError]
+pub fn NativeClient::session(Self) -> @moonmqtt.ClientSession
+pub async fn NativeClient::subscribe(Self, Array[@moonmqtt.Subscription], properties? : Array[@moonmqtt.Property]) -> Result[Unit, @moonmqtt.MqttError]
+pub async fn NativeClient::unsubscribe(Self, Array[String], properties? : Array[@moonmqtt.Property]) -> Result[Unit, @moonmqtt.MqttError]
+
+pub(all) struct NativeOptions {
+  host : String
+  port : Int
+  tls : Bool
+  verify_tls : Bool
+  read_chunk_size : Int
+}
+pub fn NativeOptions::new(String, port? : Int, tls? : Bool) -> Self
+
+pub enum NativeTransport {
+  Plain(@socket.Tcp)
+  Secure(@tls.Tls)
+}
+
+// Type aliases
+
+// Traits
