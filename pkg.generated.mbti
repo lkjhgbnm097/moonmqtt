@@ -26,6 +26,8 @@ pub fn encode_packet(Packet) -> Result[Bytes, MqttError]
 
 pub fn encode_variable_byte_integer(Int) -> Result[Bytes, MqttError]
 
+pub fn topic_matches(String, String) -> Result[Bool, MqttError]
+
 // Errors
 
 // Types and methods

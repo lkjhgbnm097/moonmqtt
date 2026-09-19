@@ -447,6 +447,37 @@ test "hex helpers round-trip wire bytes" {
 }
 
 ///|
+test "topic filters match wildcards shared subscriptions and system topics" {
+  assert_eq(
+    @moonmqtt.topic_matches("factory/+/temperature", "factory/a/temperature"),
+    Ok(true),
+  )
+  assert_eq(
+    @moonmqtt.topic_matches("factory/+/temperature", "factory/a/humidity"),
+    Ok(false),
+  )
+  assert_eq(@moonmqtt.topic_matches("factory/#", "factory"), Ok(true))
+  assert_eq(
+    @moonmqtt.topic_matches("factory/#", "factory/a/temperature"),
+    Ok(true),
+  )
+  assert_eq(
+    @moonmqtt.topic_matches("$share/workers/factory/+", "factory/a"),
+    Ok(true),
+  )
+  assert_eq(@moonmqtt.topic_matches("#", "$SYS/broker/uptime"), Ok(false))
+  assert_eq(@moonmqtt.topic_matches("$SYS/#", "$SYS/broker/uptime"), Ok(true))
+  assert_eq(
+    @moonmqtt.topic_matches("factory/a+", "factory/a"),
+    Err(
+      @moonmqtt.MqttError::ProtocolViolation(
+        "single-level wildcard must occupy an entire topic level",
+      ),
+    ),
+  )
+}
+
+///|
 test "property validation rejects wrong packet location and duplicates" {
   let wrong_location = @moonmqtt.Packet::PublishPacket({
     topic: "a",
