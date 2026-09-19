@@ -41,6 +41,7 @@ pub struct ClientSession {
   mut next_packet_id : Int
   mut ping_outstanding : Bool
   mut server_receive_maximum : Int
+  mut server_maximum_packet_size : Int
   inflight : Array[Inflight]
   incoming_qos2 : Array[PublishPacket]
 }
@@ -57,6 +58,7 @@ pub fn ClientSession::prepare_publish(Self, String, Bytes, qos? : QoS, retain? :
 pub fn ClientSession::prepare_subscribe(Self, Array[Subscription], properties? : Array[Property]) -> Result[Packet, MqttError]
 pub fn ClientSession::prepare_unsubscribe(Self, Array[String], properties? : Array[Property]) -> Result[Packet, MqttError]
 pub fn ClientSession::retransmit_inflight(Self) -> Array[Packet]
+pub fn ClientSession::server_maximum_packet_size(Self) -> Int
 pub fn ClientSession::server_receive_maximum(Self) -> Int
 pub fn ClientSession::state(Self) -> ConnectionState
 

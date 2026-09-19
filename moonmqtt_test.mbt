@@ -367,6 +367,28 @@ test "session enforces server Receive Maximum for QoS publishes" {
 }
 
 ///|
+test "session enforces server Maximum Packet Size" {
+  let session = @moonmqtt.ClientSession::new()
+  ignore(session.begin_connect(@moonmqtt.ConnectPacket::new("size-client")))
+  ignore(
+    session.handle_incoming(
+      @moonmqtt.Packet::ConnAckPacket({
+        session_present: false,
+        reason_code: 0,
+        properties: [@moonmqtt.Property::MaximumPacketSize(8)],
+      }),
+    ),
+  )
+  assert_eq(session.server_maximum_packet_size(), 8)
+  assert_true(session.prepare_publish("a", b"x") is Ok(_))
+  match session.prepare_publish("oversized/topic", b"payload") {
+    Err(@moonmqtt.MqttError::ValueOutOfRange("server Maximum Packet Size", _)) =>
+      ()
+    _ => fail("oversized outbound packet was accepted")
+  }
+}
+
+///|
 test "outgoing QoS 2 publish completes four-step handshake" {
   let session = connected_session()
   let publish = session.prepare_publish(

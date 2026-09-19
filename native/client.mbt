@@ -172,6 +172,14 @@ pub async fn NativeClient::send(
     Ok(value) => value
     Err(err) => return Err(err)
   }
+  if bytes.length() > self.session.server_maximum_packet_size() {
+    return Err(
+      @mqtt.MqttError::ValueOutOfRange(
+        "server Maximum Packet Size",
+        bytes.length(),
+      ),
+    )
+  }
   if self.transport.write_all(bytes) {
     Ok(())
   } else {

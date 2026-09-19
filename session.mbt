@@ -48,6 +48,7 @@ pub struct ClientSession {
   mut next_packet_id : Int
   mut ping_outstanding : Bool
   mut server_receive_maximum : Int
+  mut server_maximum_packet_size : Int
   inflight : Array[Inflight]
   incoming_qos2 : Array[PublishPacket]
 }
@@ -59,6 +60,7 @@ pub fn ClientSession::new() -> ClientSession {
     next_packet_id: 1,
     ping_outstanding: false,
     server_receive_maximum: 65535,
+    server_maximum_packet_size: MAX_VARIABLE_BYTE_INTEGER + 5,
     inflight: [],
     incoming_qos2: [],
   }
@@ -85,6 +87,11 @@ pub fn ClientSession::server_receive_maximum(self : ClientSession) -> Int {
 }
 
 ///|
+pub fn ClientSession::server_maximum_packet_size(self : ClientSession) -> Int {
+  self.server_maximum_packet_size
+}
+
+///|
 pub fn ClientSession::outgoing_publish_count(self : ClientSession) -> Int {
   let mut count = 0
   for item in self.inflight {
@@ -94,6 +101,22 @@ pub fn ClientSession::outgoing_publish_count(self : ClientSession) -> Int {
     }
   }
   count
+}
+
+///|
+fn ClientSession::check_outgoing_size(
+  self : ClientSession,
+  packet : Packet,
+) -> Result[Unit, MqttError] {
+  let encoded = match encode_packet(packet) {
+    Ok(bytes) => bytes
+    Err(err) => return Err(err)
+  }
+  if encoded.length() > self.server_maximum_packet_size {
+    Err(ValueOutOfRange("server Maximum Packet Size", encoded.length()))
+  } else {
+    Ok(())
+  }
 }
 
 ///|
@@ -156,6 +179,7 @@ pub fn ClientSession::begin_connect(
   self.incoming_qos2.clear()
   self.ping_outstanding = false
   self.server_receive_maximum = 65535
+  self.server_maximum_packet_size = MAX_VARIABLE_BYTE_INTEGER + 5
   self.state = AwaitingConnAck
   Ok(ConnectPacket(packet))
 }
@@ -194,6 +218,10 @@ pub fn ClientSession::prepare_publish(
     packet_id,
     properties,
   })
+  match self.check_outgoing_size(packet) {
+    Err(err) => return Err(err)
+    Ok(_) => ()
+  }
   match packet_id {
     None => ()
     Some(identifier) =>
@@ -225,6 +253,10 @@ pub fn ClientSession::prepare_subscribe(
     Err(err) => return Err(err)
   }
   let packet = Packet::SubscribePacket({ packet_id, subscriptions, properties, })
+  match self.check_outgoing_size(packet) {
+    Err(err) => return Err(err)
+    Ok(_) => ()
+  }
   self.inflight.push({ packet_id, stage: AwaitingSubAck, packet, })
   Ok(packet)
 }
@@ -248,6 +280,10 @@ pub fn ClientSession::prepare_unsubscribe(
     topic_filters,
     properties,
   })
+  match self.check_outgoing_size(packet) {
+    Err(err) => return Err(err)
+    Ok(_) => ()
+  }
   self.inflight.push({ packet_id, stage: AwaitingUnsubAck, packet, })
   Ok(packet)
 }
@@ -263,6 +299,10 @@ pub fn ClientSession::prepare_ping(
   if self.ping_outstanding {
     return Err(InvalidState("a PINGREQ is already outstanding"))
   }
+  match self.check_outgoing_size(PingReqPacket) {
+    Err(err) => return Err(err)
+    Ok(_) => ()
+  }
   self.ping_outstanding = true
   Ok(PingReqPacket)
 }
@@ -277,8 +317,13 @@ pub fn ClientSession::prepare_disconnect(
     Err(err) => return Err(err)
     Ok(_) => ()
   }
+  let packet = DisconnectPacket({ reason_code, properties, })
+  match self.check_outgoing_size(packet) {
+    Err(err) => return Err(err)
+    Ok(_) => ()
+  }
   self.state = Disconnecting
-  Ok(DisconnectPacket({ reason_code, properties, }))
+  Ok(packet)
 }
 
 ///|
@@ -434,10 +479,17 @@ pub fn ClientSession::handle_incoming(
       let outcome = empty_outcome()
       if value.reason_code == 0 {
         self.server_receive_maximum = 65535
+        self.server_maximum_packet_size = MAX_VARIABLE_BYTE_INTEGER + 5
         for property in value.properties {
           match property {
             ReceiveMaximum(limit) =>
               self.server_receive_maximum = limit.to_int()
+            MaximumPacketSize(limit) =>
+              self.server_maximum_packet_size = if limit > 268435460U {
+                MAX_VARIABLE_BYTE_INTEGER + 5
+              } else {
+                limit.reinterpret_as_int()
+              }
             _ => ()
           }
         }
