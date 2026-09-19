@@ -389,6 +389,39 @@ test "session enforces server Maximum Packet Size" {
 }
 
 ///|
+test "reconnect policy provides capped exponential backoff with jitter" {
+  let policy = @moonmqtt.ReconnectPolicy::new().unwrap()
+  assert_eq(policy.delay_for_attempt(0), Ok(1000))
+  assert_eq(policy.delay_for_attempt(1), Ok(2000))
+  assert_eq(policy.delay_for_attempt(5), Ok(30000))
+  assert_eq(policy.delay_for_attempt(1, jitter_percent=25), Ok(2500))
+  assert_eq(policy.delay_for_attempt(1, jitter_percent=-25), Ok(1500))
+  assert_eq(
+    policy.delay_for_attempt(1, jitter_percent=26),
+    Err(@moonmqtt.MqttError::ValueOutOfRange("reconnect jitter percent", 26)),
+  )
+  let limited = @moonmqtt.ReconnectPolicy::new(max_attempts=2).unwrap()
+  assert_true(limited.allows_attempt(0))
+  assert_true(limited.allows_attempt(1))
+  assert_false(limited.allows_attempt(2))
+  assert_eq(
+    limited.delay_for_attempt(2),
+    Err(@moonmqtt.MqttError::InvalidState("reconnect attempt limit reached")),
+  )
+}
+
+///|
+test "reconnect policy rejects invalid configuration" {
+  assert_true(@moonmqtt.ReconnectPolicy::new(initial_delay_ms=0) is Err(_))
+  assert_true(
+    @moonmqtt.ReconnectPolicy::new(initial_delay_ms=1000, max_delay_ms=999)
+    is Err(_),
+  )
+  assert_true(@moonmqtt.ReconnectPolicy::new(multiplier=1) is Err(_))
+  assert_true(@moonmqtt.ReconnectPolicy::new(max_attempts=-1) is Err(_))
+}
+
+///|
 test "outgoing QoS 2 publish completes four-step handshake" {
   let session = connected_session()
   let publish = session.prepare_publish(

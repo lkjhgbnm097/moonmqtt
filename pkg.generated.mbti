@@ -230,6 +230,16 @@ pub(all) enum QoS {
 pub fn QoS::from_int(Int) -> Result[Self, MqttError]
 pub fn QoS::to_int(Self) -> Int
 
+pub(all) struct ReconnectPolicy {
+  initial_delay_ms : Int
+  max_delay_ms : Int
+  multiplier : Int
+  max_attempts : Int
+} derive(Eq, @debug.Debug)
+pub fn ReconnectPolicy::allows_attempt(Self, Int) -> Bool
+pub fn ReconnectPolicy::delay_for_attempt(Self, Int, jitter_percent? : Int) -> Result[Int, MqttError]
+pub fn ReconnectPolicy::new(initial_delay_ms? : Int, max_delay_ms? : Int, multiplier? : Int, max_attempts? : Int) -> Result[Self, MqttError]
+
 pub(all) enum SessionEvent {
   ConnectedEvent(Bool, Array[Property])
   MessageEvent(PublishPacket)
