@@ -227,6 +227,26 @@ test "stream decoder buffers partial packets and emits complete frames" {
 }
 
 ///|
+test "stream decoder enforces a per-packet byte limit" {
+  match @moonmqtt.PacketStreamDecoder::with_max_packet_size(1) {
+    Err(@moonmqtt.MqttError::ValueOutOfRange("maximum packet size", 1)) => ()
+    _ => fail("invalid stream limit was accepted")
+  }
+  let decoder = @moonmqtt.PacketStreamDecoder::with_max_packet_size(7).unwrap()
+  assert_eq(decoder.max_packet_size(), 7)
+  assert_eq(decoder.feed(b"\x30\x06\x00\x01a\x00h"), Ok([]))
+  assert_eq(
+    decoder.feed(b"i"),
+    Err(@moonmqtt.MqttError::ValueOutOfRange("MQTT packet size", 8)),
+  )
+  decoder.reset()
+  assert_eq(
+    decoder.feed(b"\xc0\x00\xd0\x00"),
+    Ok([@moonmqtt.Packet::PingReqPacket, @moonmqtt.Packet::PingRespPacket]),
+  )
+}
+
+///|
 test "client session enforces connection lifecycle" {
   let session = @moonmqtt.ClientSession::new()
   assert_eq(session.state(), @moonmqtt.ConnectionState::Disconnected)

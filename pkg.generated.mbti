@@ -139,11 +139,14 @@ pub(all) enum Packet {
 
 pub struct PacketStreamDecoder {
   mut buffered : Array[Byte]
+  max_packet_size : Int
 }
 pub fn PacketStreamDecoder::buffered_bytes(Self) -> Int
 pub fn PacketStreamDecoder::feed(Self, Bytes) -> Result[Array[Packet], MqttError]
+pub fn PacketStreamDecoder::max_packet_size(Self) -> Int
 pub fn PacketStreamDecoder::new() -> Self
 pub fn PacketStreamDecoder::reset(Self) -> Unit
+pub fn PacketStreamDecoder::with_max_packet_size(Int) -> Result[Self, MqttError]
 
 pub(all) enum PacketType {
   Connect
