@@ -101,7 +101,7 @@ fn decode_connect(reader : Reader) -> Result[Packet, MqttError] {
       Ok(value) => value
       Err(err) => return Err(err)
     }
-    Some({
+    Some(WillMessage::{
       topic,
       payload,
       qos,

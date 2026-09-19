@@ -451,6 +451,43 @@ test "keep alive tracker supports disabled scheduling and monotonic time" {
 }
 
 ///|
+test "offline publish queue applies explicit overflow policies" {
+  let rejecting = @moonmqtt.OfflinePublishQueue::new(1).unwrap()
+  assert_eq(rejecting.capacity(), 1)
+  assert_eq(rejecting.enqueue("devices/1", b"online"), Ok(None))
+  assert_eq(
+    rejecting.enqueue("devices/2", b"online"),
+    Err(@moonmqtt.MqttError::InvalidState("offline publish queue is full")),
+  )
+  let first = rejecting.dequeue().unwrap()
+  assert_eq(first.topic, "devices/1")
+  assert_true(rejecting.is_empty())
+  let dropping = @moonmqtt.OfflinePublishQueue::new(
+    2,
+    overflow_policy=@moonmqtt.QueueOverflowPolicy::DropOldest,
+  ).unwrap()
+  ignore(dropping.enqueue("devices/1", b"one"))
+  ignore(dropping.enqueue("devices/2", b"two"))
+  let dropped = dropping.enqueue("devices/3", b"three").unwrap().unwrap()
+  assert_eq(dropped.topic, "devices/1")
+  assert_eq(dropping.length(), 2)
+  assert_eq(dropping.peek().unwrap().topic, "devices/2")
+}
+
+///|
+test "offline publish queue validates entries before storing them" {
+  let queue = @moonmqtt.OfflinePublishQueue::new(2).unwrap()
+  assert_true(queue.enqueue("invalid/+", b"payload") is Err(_))
+  assert_true(
+    queue.enqueue("devices/1", b"payload", properties=[
+      @moonmqtt.Property::ReceiveMaximum(1),
+    ])
+    is Err(_),
+  )
+  assert_eq(queue.length(), 0)
+}
+
+///|
 test "outgoing QoS 2 publish completes four-step handshake" {
   let session = connected_session()
   let publish = session.prepare_publish(

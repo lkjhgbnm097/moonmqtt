@@ -146,6 +146,20 @@ pub(all) enum MqttError {
 } derive(Eq, @debug.Debug)
 pub fn MqttError::message(Self) -> String
 
+pub struct OfflinePublishQueue {
+  capacity : Int
+  overflow_policy : QueueOverflowPolicy
+  items : Array[QueuedPublish]
+}
+pub fn OfflinePublishQueue::capacity(Self) -> Int
+pub fn OfflinePublishQueue::clear(Self) -> Unit
+pub fn OfflinePublishQueue::dequeue(Self) -> QueuedPublish?
+pub fn OfflinePublishQueue::enqueue(Self, String, Bytes, qos? : QoS, retain? : Bool, properties? : Array[Property]) -> Result[QueuedPublish?, MqttError]
+pub fn OfflinePublishQueue::is_empty(Self) -> Bool
+pub fn OfflinePublishQueue::length(Self) -> Int
+pub fn OfflinePublishQueue::new(Int, overflow_policy? : QueueOverflowPolicy) -> Result[Self, MqttError]
+pub fn OfflinePublishQueue::peek(Self) -> QueuedPublish?
+
 pub(all) enum Packet {
   ConnectPacket(ConnectPacket)
   ConnAckPacket(ConnAckPacket)
@@ -248,6 +262,19 @@ pub(all) enum QoS {
 } derive(Eq, @debug.Debug)
 pub fn QoS::from_int(Int) -> Result[Self, MqttError]
 pub fn QoS::to_int(Self) -> Int
+
+pub(all) enum QueueOverflowPolicy {
+  RejectNewest
+  DropOldest
+} derive(Eq, @debug.Debug)
+
+pub(all) struct QueuedPublish {
+  topic : String
+  payload : Bytes
+  qos : QoS
+  retain : Bool
+  properties : Array[Property]
+} derive(Eq, @debug.Debug)
 
 pub(all) struct ReconnectPolicy {
   initial_delay_ms : Int
