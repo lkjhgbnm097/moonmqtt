@@ -45,6 +45,7 @@ fn empty_outcome() -> SessionOutcome {
 ///|
 pub struct ClientSession {
   mut state : ConnectionState
+  mut clean_start_requested : Bool
   mut next_packet_id : Int
   mut ping_outstanding : Bool
   mut server_receive_maximum : Int
@@ -57,6 +58,7 @@ pub struct ClientSession {
 pub fn ClientSession::new() -> ClientSession {
   {
     state: Disconnected,
+    clean_start_requested: true,
     next_packet_id: 1,
     ping_outstanding: false,
     server_receive_maximum: 65535,
@@ -175,8 +177,11 @@ pub fn ClientSession::begin_connect(
       InvalidState("CONNECT can only start from the disconnected state"),
     )
   }
-  self.inflight.clear()
-  self.incoming_qos2.clear()
+  self.clean_start_requested = packet.clean_start
+  if packet.clean_start {
+    self.inflight.clear()
+    self.incoming_qos2.clear()
+  }
   self.ping_outstanding = false
   self.server_receive_maximum = 65535
   self.server_maximum_packet_size = MAX_VARIABLE_BYTE_INTEGER + 5
@@ -478,6 +483,18 @@ pub fn ClientSession::handle_incoming(
       }
       let outcome = empty_outcome()
       if value.reason_code == 0 {
+        if self.clean_start_requested && value.session_present {
+          self.state = Disconnected
+          return Err(
+            ProtocolViolation(
+              "CONNACK reported Session Present after a clean start",
+            ),
+          )
+        }
+        if !value.session_present {
+          self.inflight.clear()
+          self.incoming_qos2.clear()
+        }
         self.server_receive_maximum = 65535
         self.server_maximum_packet_size = MAX_VARIABLE_BYTE_INTEGER + 5
         for property in value.properties {

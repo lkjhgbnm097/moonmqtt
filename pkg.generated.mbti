@@ -38,6 +38,7 @@ pub(all) struct AuthPacket {
 
 pub struct ClientSession {
   mut state : ConnectionState
+  mut clean_start_requested : Bool
   mut next_packet_id : Int
   mut ping_outstanding : Bool
   mut server_receive_maximum : Int

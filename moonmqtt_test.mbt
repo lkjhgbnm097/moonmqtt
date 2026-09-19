@@ -536,6 +536,118 @@ test "outgoing QoS 2 publish completes four-step handshake" {
 }
 
 ///|
+test "persistent reconnect retransmits unacknowledged publish" {
+  let session = @moonmqtt.ClientSession::new()
+  ignore(
+    session.begin_connect(
+      @moonmqtt.ConnectPacket::new("resume-client", clean_start=false),
+    ),
+  )
+  ignore(
+    session.handle_incoming(
+      @moonmqtt.Packet::ConnAckPacket({
+        session_present: false,
+        reason_code: 0,
+        properties: [],
+      }),
+    ),
+  )
+  ignore(
+    session.prepare_publish(
+      "resume/data",
+      b"value",
+      qos=@moonmqtt.QoS::AtLeastOnce,
+    ),
+  )
+  assert_eq(session.inflight_count(), 1)
+  session.mark_transport_closed()
+  ignore(
+    session.begin_connect(
+      @moonmqtt.ConnectPacket::new("resume-client", clean_start=false),
+    ),
+  )
+  assert_eq(session.inflight_count(), 1)
+  ignore(
+    session.handle_incoming(
+      @moonmqtt.Packet::ConnAckPacket({
+        session_present: true,
+        reason_code: 0,
+        properties: [],
+      }),
+    ),
+  )
+  let retransmitted = session.retransmit_inflight()
+  assert_eq(retransmitted.length(), 1)
+  match retransmitted[0] {
+    @moonmqtt.Packet::PublishPacket(packet) => assert_true(packet.duplicate)
+    _ => fail("expected retransmitted PUBLISH")
+  }
+}
+
+///|
+test "reconnect clears inflight work when broker has no stored session" {
+  let session = @moonmqtt.ClientSession::new()
+  ignore(
+    session.begin_connect(
+      @moonmqtt.ConnectPacket::new("new-session-client", clean_start=false),
+    ),
+  )
+  ignore(
+    session.handle_incoming(
+      @moonmqtt.Packet::ConnAckPacket({
+        session_present: false,
+        reason_code: 0,
+        properties: [],
+      }),
+    ),
+  )
+  ignore(
+    session.prepare_publish(
+      "resume/data",
+      b"value",
+      qos=@moonmqtt.QoS::AtLeastOnce,
+    ),
+  )
+  session.mark_transport_closed()
+  ignore(
+    session.begin_connect(
+      @moonmqtt.ConnectPacket::new("new-session-client", clean_start=false),
+    ),
+  )
+  ignore(
+    session.handle_incoming(
+      @moonmqtt.Packet::ConnAckPacket({
+        session_present: false,
+        reason_code: 0,
+        properties: [],
+      }),
+    ),
+  )
+  assert_eq(session.inflight_count(), 0)
+}
+
+///|
+test "session rejects Session Present after clean start" {
+  let session = @moonmqtt.ClientSession::new()
+  ignore(session.begin_connect(@moonmqtt.ConnectPacket::new("clean-client")))
+  assert_eq(
+    session.handle_incoming(
+      @moonmqtt.Packet::ConnAckPacket({
+        session_present: true,
+        reason_code: 0,
+        properties: [],
+      }),
+    ),
+    Err(
+      @moonmqtt.MqttError::ProtocolViolation(
+        "CONNACK reported Session Present after a clean start",
+      ),
+    ),
+  )
+  assert_eq(session.state(), @moonmqtt.ConnectionState::Disconnected)
+}
+
+///|
 test "incoming QoS 2 message is delivered exactly once after PUBREL" {
   let session = connected_session()
   let publish : @moonmqtt.PublishPacket = {
