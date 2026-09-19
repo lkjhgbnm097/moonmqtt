@@ -40,6 +40,7 @@ pub struct ClientSession {
   mut state : ConnectionState
   mut next_packet_id : Int
   mut ping_outstanding : Bool
+  mut server_receive_maximum : Int
   inflight : Array[Inflight]
   incoming_qos2 : Array[PublishPacket]
 }
@@ -49,12 +50,14 @@ pub fn ClientSession::has_ping_outstanding(Self) -> Bool
 pub fn ClientSession::inflight_count(Self) -> Int
 pub fn ClientSession::mark_transport_closed(Self) -> Unit
 pub fn ClientSession::new() -> Self
+pub fn ClientSession::outgoing_publish_count(Self) -> Int
 pub fn ClientSession::prepare_disconnect(Self, reason_code? : Byte, properties? : Array[Property]) -> Result[Packet, MqttError]
 pub fn ClientSession::prepare_ping(Self) -> Result[Packet, MqttError]
 pub fn ClientSession::prepare_publish(Self, String, Bytes, qos? : QoS, retain? : Bool, properties? : Array[Property]) -> Result[Packet, MqttError]
 pub fn ClientSession::prepare_subscribe(Self, Array[Subscription], properties? : Array[Property]) -> Result[Packet, MqttError]
 pub fn ClientSession::prepare_unsubscribe(Self, Array[String], properties? : Array[Property]) -> Result[Packet, MqttError]
 pub fn ClientSession::retransmit_inflight(Self) -> Array[Packet]
+pub fn ClientSession::server_receive_maximum(Self) -> Int
 pub fn ClientSession::state(Self) -> ConnectionState
 
 pub(all) struct ConnAckPacket {

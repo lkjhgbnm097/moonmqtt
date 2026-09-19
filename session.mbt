@@ -47,6 +47,7 @@ pub struct ClientSession {
   mut state : ConnectionState
   mut next_packet_id : Int
   mut ping_outstanding : Bool
+  mut server_receive_maximum : Int
   inflight : Array[Inflight]
   incoming_qos2 : Array[PublishPacket]
 }
@@ -57,6 +58,7 @@ pub fn ClientSession::new() -> ClientSession {
     state: Disconnected,
     next_packet_id: 1,
     ping_outstanding: false,
+    server_receive_maximum: 65535,
     inflight: [],
     incoming_qos2: [],
   }
@@ -75,6 +77,23 @@ pub fn ClientSession::inflight_count(self : ClientSession) -> Int {
 ///|
 pub fn ClientSession::has_ping_outstanding(self : ClientSession) -> Bool {
   self.ping_outstanding
+}
+
+///|
+pub fn ClientSession::server_receive_maximum(self : ClientSession) -> Int {
+  self.server_receive_maximum
+}
+
+///|
+pub fn ClientSession::outgoing_publish_count(self : ClientSession) -> Int {
+  let mut count = 0
+  for item in self.inflight {
+    match item.stage {
+      AwaitingPubAck | AwaitingPubRec => count += 1
+      _ => ()
+    }
+  }
+  count
 }
 
 ///|
@@ -136,6 +155,7 @@ pub fn ClientSession::begin_connect(
   self.inflight.clear()
   self.incoming_qos2.clear()
   self.ping_outstanding = false
+  self.server_receive_maximum = 65535
   self.state = AwaitingConnAck
   Ok(ConnectPacket(packet))
 }
@@ -155,11 +175,15 @@ pub fn ClientSession::prepare_publish(
   }
   let packet_id = match qos {
     AtMostOnce => None
-    AtLeastOnce | ExactlyOnce =>
+    AtLeastOnce | ExactlyOnce => {
+      if self.outgoing_publish_count() >= self.server_receive_maximum {
+        return Err(InvalidState("server Receive Maximum would be exceeded"))
+      }
       match self.allocate_packet_id() {
         Ok(value) => Some(value)
         Err(err) => return Err(err)
       }
+    }
   }
   let packet = Packet::PublishPacket({
     topic,
@@ -409,6 +433,14 @@ pub fn ClientSession::handle_incoming(
       }
       let outcome = empty_outcome()
       if value.reason_code == 0 {
+        self.server_receive_maximum = 65535
+        for property in value.properties {
+          match property {
+            ReceiveMaximum(limit) =>
+              self.server_receive_maximum = limit.to_int()
+            _ => ()
+          }
+        }
         self.state = Connected
         outcome.events.push(
           ConnectedEvent(value.session_present, value.properties),

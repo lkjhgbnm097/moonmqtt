@@ -309,6 +309,64 @@ test "outgoing QoS 1 publish is tracked until PUBACK" {
 }
 
 ///|
+test "session enforces server Receive Maximum for QoS publishes" {
+  let session = @moonmqtt.ClientSession::new()
+  ignore(session.begin_connect(@moonmqtt.ConnectPacket::new("flow-client")))
+  ignore(
+    session.handle_incoming(
+      @moonmqtt.Packet::ConnAckPacket({
+        session_present: false,
+        reason_code: 0,
+        properties: [@moonmqtt.Property::ReceiveMaximum(1)],
+      }),
+    ),
+  )
+  assert_eq(session.server_receive_maximum(), 1)
+  let first = session.prepare_publish(
+    "flow/first",
+    b"one",
+    qos=@moonmqtt.QoS::AtLeastOnce,
+  )
+  let first_id = match first {
+    Ok(@moonmqtt.Packet::PublishPacket(packet)) => packet.packet_id.unwrap()
+    _ => fail("expected first QoS 1 publish")
+  }
+  assert_eq(session.outgoing_publish_count(), 1)
+  assert_eq(
+    session.prepare_publish(
+      "flow/second",
+      b"two",
+      qos=@moonmqtt.QoS::ExactlyOnce,
+    ),
+    Err(
+      @moonmqtt.MqttError::InvalidState(
+        "server Receive Maximum would be exceeded",
+      ),
+    ),
+  )
+  assert_true(session.prepare_publish("flow/qos0", b"zero") is Ok(_))
+  ignore(
+    session.handle_incoming(
+      @moonmqtt.Packet::PubResponsePacket({
+        kind: @moonmqtt.PacketType::PubAck,
+        packet_id: first_id,
+        reason_code: 0,
+        properties: [],
+      }),
+    ),
+  )
+  assert_eq(session.outgoing_publish_count(), 0)
+  assert_true(
+    session.prepare_publish(
+      "flow/second",
+      b"two",
+      qos=@moonmqtt.QoS::ExactlyOnce,
+    )
+    is Ok(_),
+  )
+}
+
+///|
 test "outgoing QoS 2 publish completes four-step handshake" {
   let session = connected_session()
   let publish = session.prepare_publish(
