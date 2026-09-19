@@ -9,14 +9,16 @@
 - [x] Native TCP/TLS；
 - [x] CLI、示例、CI、模拟 Broker 与 Mosquitto 集成入口。
 
-## 0.2：可靠连接
+## 0.2：可靠连接（基础能力已完成）
 
-- [ ] 自动重连和带抖动的指数退避；
-- [ ] Session Present 驱动的重发策略；
-- [ ] Receive Maximum 发送窗口；
-- [ ] Maximum Packet Size 协商；
-- [ ] 可配置 Keep Alive 调度器；
-- [ ] 离线发送队列及容量策略。
+- [x] 带抖动的指数退避策略；
+- [ ] 将退避策略集成到 Native 自动重连传输循环；
+- [x] Session Present 驱动的重发策略；
+- [x] Receive Maximum 发送窗口；
+- [x] Maximum Packet Size 协商；
+- [x] 可配置 Keep Alive 调度器；
+- [x] 有界离线发送队列及容量策略；
+- [ ] 将离线队列自动排空集成到 Native 传输循环。
 
 ## 0.3：跨端传输
 

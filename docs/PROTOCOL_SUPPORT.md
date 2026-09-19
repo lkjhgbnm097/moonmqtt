@@ -40,6 +40,7 @@ Available。
 - 空 PUBLISH Topic Name 仅在携带非零 Topic Alias 时允许；
 - 校验 `+` 和 `#` 在主题过滤器中的层级位置；
 - 校验共享订阅组名、过滤器与 No Local 约束；
+- 匹配普通、通配符、共享订阅和 `$SYS` 主题过滤器；
 - 校验 Authentication Data 对 Authentication Method 的依赖；
 - 校验空 Client Identifier 与 Clean Start 的组合。
 
@@ -55,11 +56,14 @@ Available。
 | QoS 2 | ✅ | 四阶段发送与接收、重复抑制 |
 | 多主题订阅 | ✅ | 每项独立订阅选项 |
 | 取消订阅 | ✅ | 多主题 Filter |
-| Keep Alive 报文 | ✅ | PINGREQ/PINGRESP；定时调度由应用驱动 |
+| Keep Alive 报文与调度 | ✅ | PINGREQ/PINGRESP；`KeepAliveTracker` 可由传输循环驱动 |
 | Topic Alias | 编解码 ✅ | Alias 映射表尚未自动维护 |
 | Enhanced Authentication | 报文 ✅ | 认证策略由应用驱动 |
-| Session Resume | 部分 | Session Present 可见；重连恢复尚未自动化 |
-| Receive Maximum 流控 | 属性 ✅ | 发送窗口尚未自动限流 |
+| Session Resume | ✅ | Clean Start / Session Present 驱动保留、重发或清理状态 |
+| Receive Maximum 流控 | ✅ | 限制未确认的 QoS 1/2 出站 PUBLISH 数量 |
+| Maximum Packet Size | ✅ | Session 与 NativeClient 均拒绝超出服务端限制的报文 |
+| 重连退避 | 策略 ✅ | 指数退避、抖动与次数上限；传输循环由应用驱动 |
+| 离线发布队列 | ✅ | 有界队列，支持拒绝或丢弃最旧消息 |
 
 ## 传输
 

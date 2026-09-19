@@ -60,7 +60,10 @@ Native MoonBit 服务通过 TCP 或 TLS 连接企业现有 Mosquitto/HiveMQ Brok
 7. Native TCP/TLS 客户端；
 8. inspect、publish、subscribe CLI；
 9. Wasm、JS、Native 自动测试；
-10. 模拟 Broker 和 Mosquitto 互操作测试。
+10. 模拟 Broker 和 Mosquitto 互操作测试；
+11. 主题过滤器匹配与流式报文内存上限；
+12. Receive Maximum、Maximum Packet Size 和持久会话恢复；
+13. Keep Alive 调度、重连退避和有界离线发布队列。
 
 ## 六、交付物
 
@@ -77,7 +80,7 @@ Native MoonBit 服务通过 TCP 或 TLS 连接企业现有 Mosquitto/HiveMQ Brok
 - 不实现 MQTT Broker；
 - 不实现完整物联网云平台或设备管理后台；
 - 首版不支持 MQTT 3.1.1；
-- 首版不承诺自动重连、持久离线队列和浏览器 WebSocket；
+- 首版不承诺 Native 自动重连传输循环、离线队列自动排空和浏览器 WebSocket；
 - 未完成一致性认证前不宣称 100% 兼容所有 Broker。
 
 ## 八、技术路线

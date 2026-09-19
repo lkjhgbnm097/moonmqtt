@@ -26,10 +26,15 @@ MoonBit 很适合构建跨端、低开销的协议组件，但目前生态中缺
 - MQTT UTF-8 校验，包括过长编码、代理项、U+0000 和非字符；
 - 属性位置、单例属性和合法取值校验；
 - 报文 Reason Code、主题名、主题过滤器和共享订阅约束校验；
+- 支持 `+`、`#`、系统主题和共享订阅语义的主题过滤器匹配；
 - 流式解码，可处理拆包和连续粘包；
+- 可配置的单报文大小上限，避免流式输入无界占用内存；
 - 确定性客户端会话状态机；
 - QoS 0、QoS 1 和 QoS 2 发送/接收握手；
 - 重复 QoS 2 PUBLISH 抑制；
+- `Receive Maximum` 发送窗口与 `Maximum Packet Size` 出站限制；
+- 基于 `Clean Start` / `Session Present` 的持久会话恢复和重发；
+- 可测试的 Keep Alive 调度器、重连退避策略和有界离线发布队列；
 - 包标识符分配、订阅确认、取消订阅、Ping 和断线状态；
 - Native TCP/TLS 客户端；
 - `inspect`、`publish`、`subscribe` 命令行工具；
@@ -183,8 +188,13 @@ Bytes / stream decoder
 | 流式拆包/粘包 | 已实现 |
 | 用户名/密码认证 | 已实现 |
 | Enhanced Authentication 报文 | 已实现，应用层流程需自行驱动 |
-| 自动重连 | 规划中 |
-| 离线发送队列 | 规划中 |
+| 主题过滤器匹配 | 已实现，含共享订阅与系统主题规则 |
+| 持久会话恢复 | 已实现，Session Present 驱动保留或清理状态 |
+| Receive Maximum 流控 | 已实现 |
+| Maximum Packet Size 限制 | 已实现 |
+| Keep Alive 调度 | 已实现，可由传输循环驱动 |
+| 重连退避策略 | 已实现；自动传输重连循环待集成 |
+| 离线发送队列 | 已实现有界队列；自动排空待传输层集成 |
 | WebSocket 传输 | 规划中 |
 | 浏览器网络客户端 | 规划中；协议核心已支持 JS/Wasm |
 | MQTT 3.1.1 | 非目标 |
@@ -195,9 +205,9 @@ Bytes / stream decoder
 ## 测试与质量门禁
 
 ```bash
-# 跨平台协议核心
-moon test --target wasm
-moon test --target js
+# 跨平台严格检查与测试
+moon check --target all --deny-warn
+moon test --target all --deny-warn
 
 # Native 客户端和模拟 Broker 端到端测试
 moon test --target native
@@ -211,14 +221,16 @@ moon run --target native integration/mosquitto
 ```
 
 测试包含规范字节向量、所有控制报文往返、属性约束、非法报文、UTF-8、拆包/粘包、
-客户端生命周期、QoS 1/2 状态机以及 TCP 端到端流程。协议核心当前语句覆盖率为
-`1160/1447`（80.2%）。
+客户端生命周期、QoS 1/2 状态机、连接限制、断线恢复以及 TCP 端到端流程。当前
+Wasm、Wasm-GC 和 JavaScript 各 37/37 测试通过，Native 38/38 测试通过；协议核心
+语句覆盖率为 `1315/1623`（81.0%）。
 
 ## 已知边界
 
 - `moonbitlang/async` 的 API 仍在演进，Native 网络包可能需要随工具链升级调整；
 - 当前客户端适合单任务顺序驱动；多任务同时调用同一个客户端尚未提供并发保护；
-- 自动重连、持久会话恢复、离线队列和流控窗口将在后续版本实现；
+- 可靠连接所需的重连策略、会话恢复和离线队列已经提供，但 Native 客户端尚未集成
+  自动重连循环和队列自动排空；
 - TLS 依赖系统信任根；`--insecure` 不应在生产环境使用；
 - 本项目尚未通过官方 MQTT 5.0 一致性认证，因此不会宣称完全合规。
 
@@ -233,6 +245,7 @@ moon run --target native integration/mosquitto
 - [路线图](docs/ROADMAP.md)
 - [参赛与发布检查表](docs/COMPETITION_CHECKLIST.zh-CN.md)
 - [质量报告](docs/QUALITY_REPORT.md)
+- [公开开发日志](docs/DEVELOPMENT_LOG.zh-CN.md)
 - [项目状态](PROJECT_STATUS.md)
 - [贡献指南](CONTRIBUTING.md)
 
