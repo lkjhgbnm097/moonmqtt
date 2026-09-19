@@ -422,6 +422,35 @@ test "reconnect policy rejects invalid configuration" {
 }
 
 ///|
+test "keep alive tracker schedules ping and detects timeout" {
+  let tracker = @moonmqtt.KeepAliveTracker::new(10, start_ms=1000).unwrap()
+  assert_eq(tracker.interval_ms(), 10000)
+  assert_eq(tracker.poll(10999), Ok(@moonmqtt.KeepAliveAction::Idle))
+  assert_eq(tracker.poll(11000), Ok(@moonmqtt.KeepAliveAction::SendPing))
+  assert_eq(tracker.mark_ping_sent(11000), Ok(()))
+  assert_true(tracker.has_ping_outstanding())
+  assert_eq(tracker.poll(20999), Ok(@moonmqtt.KeepAliveAction::Idle))
+  assert_eq(tracker.poll(21000), Ok(@moonmqtt.KeepAliveAction::TimedOut))
+  assert_eq(tracker.mark_ping_response(21000), Ok(()))
+  assert_false(tracker.has_ping_outstanding())
+  assert_eq(tracker.poll(30999), Ok(@moonmqtt.KeepAliveAction::Idle))
+  assert_eq(tracker.poll(31000), Ok(@moonmqtt.KeepAliveAction::SendPing))
+}
+
+///|
+test "keep alive tracker supports disabled scheduling and monotonic time" {
+  let disabled = @moonmqtt.KeepAliveTracker::new(0).unwrap()
+  assert_eq(disabled.poll(100000), Ok(@moonmqtt.KeepAliveAction::Idle))
+  assert_true(disabled.mark_ping_sent(100000) is Err(_))
+  let tracker = @moonmqtt.KeepAliveTracker::new(5, start_ms=100).unwrap()
+  assert_eq(tracker.record_activity(200), Ok(()))
+  assert_eq(
+    tracker.poll(199),
+    Err(@moonmqtt.MqttError::InvalidState("keep alive clock moved backwards")),
+  )
+}
+
+///|
 test "outgoing QoS 2 publish completes four-step handshake" {
   let session = connected_session()
   let publish = session.prepare_publish(

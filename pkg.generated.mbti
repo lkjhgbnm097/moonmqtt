@@ -111,6 +111,25 @@ pub enum InflightStage {
   AwaitingUnsubAck
 } derive(Eq, @debug.Debug)
 
+pub(all) enum KeepAliveAction {
+  Idle
+  SendPing
+  TimedOut
+} derive(Eq, @debug.Debug)
+
+pub struct KeepAliveTracker {
+  interval_ms : Int
+  mut last_activity_ms : Int
+  mut ping_sent_at_ms : Int?
+}
+pub fn KeepAliveTracker::has_ping_outstanding(Self) -> Bool
+pub fn KeepAliveTracker::interval_ms(Self) -> Int
+pub fn KeepAliveTracker::mark_ping_response(Self, Int) -> Result[Unit, MqttError]
+pub fn KeepAliveTracker::mark_ping_sent(Self, Int) -> Result[Unit, MqttError]
+pub fn KeepAliveTracker::new(Int, start_ms? : Int) -> Result[Self, MqttError]
+pub fn KeepAliveTracker::poll(Self, Int) -> Result[KeepAliveAction, MqttError]
+pub fn KeepAliveTracker::record_activity(Self, Int) -> Result[Unit, MqttError]
+
 pub(all) enum MqttError {
   NeedMoreData
   MalformedPacket(String)
