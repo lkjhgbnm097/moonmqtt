@@ -19,11 +19,11 @@ repository = "https://github.com/lkjhgbnm097/moonmqtt"
 
 license = "Apache-2.0"
 
-keywords = [ "mqtt", "iot", "protocol", "networking", "moonbit" ]
+keywords = [ "mqtt", "iot", "policy", "data-governance", "moonbit" ]
 
 preferred_target = "native"
 
-description = "Portable MQTT 5.0 codec, client state machine, and native TCP/TLS client"
+description = "MQTT 5 message-contract and release-policy gate for MoonBit"
 
 import {
   "moonbitlang/async@0.21.0",

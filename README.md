@@ -1,260 +1,184 @@
-# MoonMQTT
+# MoonMQTT Guard
 
-MoonMQTT 是一个以 MoonBit 编写的 MQTT 5.0 协议工具包和客户端。它把协议编解码、
-会话状态机与平台网络 I/O 分离：同一套协议核心可以运行在 Native、JavaScript 和
-WebAssembly，Native 包则通过官方 `moonbitlang/async` 提供 TCP/TLS 客户端。
+**面向 MQTT 5.0 的消息契约与发布治理门禁，使用 MoonBit 实现。**
 
-项目当前处于 **0.1.0 开发阶段**。协议核心和主要客户端流程已经可用，但尚未宣称为
-生产级 MQTT SDK；请先阅读[已知边界](#已知边界)。
+MoonMQTT Guard 不是另一套通用 MQTT 客户端，也不实现 Broker。它在业务数据进入 MQTT
+基础设施之前，对每一条 `PUBLISH` 做确定性的“是否允许发布”判定：主题是否属于已登记契约、
+载荷是否超限、QoS/Retain 是否符合用途、Content Type 与 User Property 是否完整、消息是否
+设置合理的过期时间，以及请求消息是否携带 Response Topic 与 Correlation Data。
 
-## 为什么做 MoonMQTT
+项目保留自研 MQTT 5.0 编解码、流式解析和会话代码作为**可移植协议适配层**，核心交付则是
+可嵌入边缘网关、工业采集程序和测试流水线的发布治理能力。
 
-MoonBit 很适合构建跨端、低开销的协议组件，但目前生态中缺少一个结构清晰、可测试、
-能连接真实 Broker 的 MQTT 5.0 客户端。MoonMQTT 面向以下实际场景：
+> 当前版本为 0.1.0 开发版。门禁判定器、MQTT 5 协议核心和 Native 验证链路可用；尚未宣称
+> 获得 MQTT 一致性认证，也不替代 Broker ACL、身份认证或端到端数据治理平台。
 
-- 工业传感器遥测、设备告警和远程控制；
-- 智能家居、边缘网关和实验室设备接入；
-- Native 服务与 EMQX、Mosquitto、HiveMQ 等现有 Broker 集成；
-- 在浏览器或 Wasm 应用中复用 MQTT 报文解析与会话逻辑；
-- 教学、抓包分析、协议测试和模糊测试。
+## 一分钟体验：阻止“合法但不该发”的消息
 
-## 当前能力
+```bash
+moon update
+moon run examples/release_gate
+```
+
+示例为 `factory/+/telemetry` 定义发布契约：JSON 载荷不超过 16 字节、QoS 不高于 1、
+禁止 Retain、必须声明 `purpose=maintenance` 与 `schema=telemetry-v1`，并在 60 秒内过期。
+协议上完全合法但不符合业务契约的消息会得到包含**全部违规项**的拒绝结果。
+
+```moonbit
+let contract = @mqtt.PublishContract::new(
+  "factory-telemetry-v1",
+  "factory/+/telemetry",
+  max_payload_bytes=1024,
+  maximum_qos=@mqtt.QoS::AtLeastOnce,
+  allow_retain=false,
+  required_content_type=Some("application/json"),
+  required_user_properties=[
+    @mqtt.UserPropertyRequirement::new("purpose", "maintenance"),
+    @mqtt.UserPropertyRequirement::new("schema", "telemetry-v1"),
+  ],
+  require_message_expiry=true,
+  maximum_message_expiry_secs=Some(60),
+)
+
+let decision = @mqtt.evaluate_publish_contract(contract, publish).unwrap()
+```
+
+返回值不是模糊的布尔量：
+
+- `Permit(contract_name)`：消息满足选中的具名契约；
+- `Deny(contract_name?, violations)`：一次给出所有稳定、机器可读的违规原因；
+- 非法 Topic Filter 作为配置错误返回 `MqttError`，不会被误当成普通拒绝。
+
+## 实际应用价值
+
+### 工业边缘网关的数据最小化
+
+同一个设备可能产生运维、计费和诊断数据。门禁通过 Topic Filter 与 MQTT 5 User Property
+把“用途”变成可执行契约，阻止诊断载荷误入长期保留主题，并限制载荷大小和有效期。
+
+### 命令/响应链路的可追踪性
+
+设备命令可以强制要求 `Response Topic` 和 `Correlation Data`。缺少回执路径或关联标识的命令
+在进入 Broker 前被拒绝，避免出现无法对账的远程操作。
+
+### CI 中的 MQTT 报文契约测试
+
+门禁核心没有网络依赖。团队可以把抓包、固件生成的测试向量或模拟 PUBLISH 直接交给同一套
+MoonBit 规则，稳定复现拒绝原因，不需要启动 Broker。
+
+### 边缘侧的低开销预检
+
+协议核心可编译到 Native、JavaScript 和 WebAssembly。Native 网关可在发送前执行规则；
+浏览器/Wasm 工具可对抓包离线审计，二者共享完全相同的判定语义。
+
+## 与现有 MoonBit MQTT 项目的边界
+
+2026-09-21 对 GitHub 公开仓库进行了同类检索，详见
+[`docs/DIFFERENTIATION.md`](docs/DIFFERENTIATION.md)。结论如下：
+
+| 项目 | 主要职责 | 与 MoonMQTT Guard 的关系 |
+|---|---|---|
+| [`zbhzs1/moonbit-mqtt`](https://github.com/zbhzs1/moonbit-mqtt) | MQTT 3.1.1 报文编解码 | 可作为另一种协议适配来源；不做发布契约 |
+| [`Strangelight-Merser/moon-mqtt-client`](https://github.com/Strangelight-Merser/moon-mqtt-client) | TCP/TLS/WS/WSS 客户端、重连、QoS 1、持久 outbox | 推荐的上游传输客户端；本项目只做发送前治理，不与其竞争连接生命周期 |
+| [`ChaonanShen/moonbit-mqtt-broker`](https://github.com/ChaonanShen/moonbit-mqtt-broker) | MQTT 3.1.1 Broker、会话、路由、持久化、ACL | 部署端基础设施；门禁可在消息到达 Broker 前补充内容契约 |
+| **MoonMQTT Guard** | MQTT 5 消息契约、用途绑定、元数据完整性、可审计拒绝 | 应用/Broker 之间的治理层 |
+
+“能否连接、重连和送达”不是本项目的差异点；“这条消息是否符合被允许的用途和数据契约”才是。
+
+## 当前核心能力
+
+### 发布治理 MVP
+
+- 按标准 MQTT Topic Filter 选择契约，未登记主题默认拒绝；
+- 载荷字节上限、最大 QoS、Retain 策略；
+- Content Type 精确约束；
+- MQTT 5 User Property 名值约束，可表达用途和 Schema 版本；
+- Message Expiry 必填及最大有效期；
+- Response Topic / Correlation Data 完整性约束；
+- 确定性“首个匹配契约”优先级；
+- 单次返回全部违规项，适合形成审计事件和 CI 报告；
+- 纯函数 API，无网络、文件和系统时间依赖。
+
+### 协议适配与验证底座
 
 - MQTT 5.0 全部 15 类控制报文的数据模型；
-- 严格的固定报头、Remaining Length 和属性编解码；
-- CONNECT、Will、PUBLISH、SUBSCRIBE、UNSUBSCRIBE、AUTH 等完整负载；
-- MQTT UTF-8 校验，包括过长编码、代理项、U+0000 和非字符；
-- 属性位置、单例属性和合法取值校验；
-- 报文 Reason Code、主题名、主题过滤器和共享订阅约束校验；
-- 支持 `+`、`#`、系统主题和共享订阅语义的主题过滤器匹配；
-- 流式解码，可处理拆包和连续粘包；
-- 可配置的单报文大小上限，避免流式输入无界占用内存；
-- 确定性客户端会话状态机；
-- QoS 0、QoS 1 和 QoS 2 发送/接收握手；
-- 重复 QoS 2 PUBLISH 抑制；
-- `Receive Maximum` 发送窗口与 `Maximum Packet Size` 出站限制；
-- 基于 `Clean Start` / `Session Present` 的持久会话恢复和重发；
-- 可测试的 Keep Alive 调度器、重连退避策略和有界离线发布队列；
-- 包标识符分配、订阅确认、取消订阅、Ping 和断线状态；
-- Native TCP/TLS 客户端；
-- `inspect`、`publish`、`subscribe` 命令行工具；
-- Wasm、JavaScript、Windows、Linux 和 macOS CI；
-- 模拟 Broker 端到端测试及 Mosquitto 真实 Broker CI。
+- 属性、Reason Code、主题与 UTF-8 约束校验；
+- 流式拆包/粘包与报文大小限制；
+- QoS 0/1/2 确定性会话状态机；
+- Native TCP/TLS 互操作适配器与 Mosquitto 测试；
+- Native、JavaScript、Wasm 和 Wasm-GC 自动测试。
 
-## 安装
-
-发布到 Mooncakes 后可使用：
-
-```bash
-moon add moonmqtt/moonmqtt@0.1.0
-```
-
-从源码运行：
-
-```bash
-# 下载或克隆当前仓库后进入项目目录
-moon update
-moon test --target native
-```
-
-公开仓库：<https://github.com/lkjhgbnm097/moonmqtt>。
-
-## 快速体验
-
-运行纯协议示例，不需要 Broker：
-
-```bash
-moon run examples/codec
-```
-
-解析抓包中的十六进制 MQTT 报文：
-
-```bash
-moon run --target native cmd/main -- inspect "30 06 00 01 61 00 68 69"
-```
-
-输出中会显示结构化 PUBLISH 报文和规范化后的 wire bytes。
-
-连接本地 Broker 并发布消息：
-
-```bash
-moon run --target native cmd/main -- publish \
-  --host 127.0.0.1 --port 1883 --qos 1 \
-  sensors/temperature "23.4"
-```
-
-订阅一条消息后退出：
-
-```bash
-moon run --target native cmd/main -- subscribe \
-  --host 127.0.0.1 --port 1883 --qos 1 --count 1 \
-  "sensors/+"
-```
-
-使用 TLS：
-
-```bash
-moon run --target native cmd/main -- publish \
-  --host broker.example.com --port 8883 --tls --qos 1 \
-  devices/status online
-```
-
-`--insecure` 会关闭证书校验，只能用于本地测试。
-
-## 作为协议库使用
-
-```moonbit
-let packet = @mqtt.Packet::PublishPacket({
-  topic: "factory/line-1/temperature",
-  payload: @mqtt.encode_mqtt_utf8("23.4").unwrap(),
-  qos: @mqtt.QoS::AtLeastOnce,
-  retain: false,
-  duplicate: false,
-  packet_id: Some(7),
-  properties: [
-    @mqtt.Property::PayloadFormatIndicator(1),
-    @mqtt.Property::ContentType("text/plain"),
-    @mqtt.Property::UserProperty("unit", "Cel"),
-  ],
-})
-
-let wire = @mqtt.encode_packet(packet).unwrap()
-let decoded = @mqtt.decode_exact_packet(wire).unwrap()
-```
-
-流式输入使用 `PacketStreamDecoder`：
-
-```moonbit
-let decoder = @mqtt.PacketStreamDecoder::new()
-let first = decoder.feed(b"\xc0")       // 暂无完整报文
-let second = decoder.feed(b"\x00\xd0\x00") // PINGREQ + PINGRESP
-```
-
-## 作为 Native 客户端使用
-
-```moonbit
-let client = @native.NativeClient::connect(
-  @native.NativeOptions::new("127.0.0.1", port=1883),
-  @mqtt.ConnectPacket::new("sensor-7"),
-).unwrap()
-
-defer client.close()
-
-client.publish(
-  "factory/line-1/temperature",
-  @mqtt.encode_mqtt_utf8("23.4").unwrap(),
-  qos=@mqtt.QoS::AtLeastOnce,
-)
-```
-
-完整示例位于 [`examples/`](examples/)。
+上述客户端代码是用于验证门禁前后报文仍能与现有 Broker 互操作的参考适配器，不再作为项目
+的产品定位。生产环境可将门禁 API 接到现有 MoonBit MQTT 客户端或其他传输实现之前。
 
 ## 架构
 
 ```text
-Application / CLI
-        │
-        ▼
-NativeClient ─── TCP / TLS (moonbitlang/async)
-        │
-        ▼
-ClientSession ── packet id / QoS / subscription / ping state
-        │
-        ▼
-Packet codec ─── fixed header / properties / payload validation
-        │
-        ▼
-Bytes / stream decoder
+Application / device data
+          │
+          ▼
+PublishContract registry
+  topic / purpose / schema / TTL / size / QoS
+          │
+          ▼
+Deterministic release gate ──► Permit(contract)
+          │
+          └──────────────────► Deny(contract?, all violations) ──► audit / CI
+          │
+          ▼
+Existing MQTT client or reference Native adapter
+          │
+          ▼
+Existing broker (Mosquitto / EMQX / HiveMQ / MoonBit broker)
 ```
 
-核心设计原则：
+门禁与网络生命周期分离，因此判断结果不会受重连时序、系统时间或具体 Broker 影响；策略错误
+与消息拒绝也有不同的返回通道。
 
-1. 协议核心不依赖网络和操作系统；
-2. 编解码不隐式修改会话状态；
-3. 状态机根据输入返回明确的响应报文和应用事件；
-4. 非法输入返回结构化 `MqttError`，而不是静默容错；
-5. QoS 2 的应用消息只在 PUBREL 阶段交付一次。
-
-更详细的模块说明见 [`docs/ARCHITECTURE.md`](docs/ARCHITECTURE.md)。
-
-## 支持矩阵
-
-| 能力 | 状态 |
-|---|---|
-| MQTT 5.0 报文编解码 | 已实现 |
-| QoS 0/1/2 会话流程 | 已实现 |
-| TCP 客户端 | 已实现，Native |
-| TLS 客户端 | 已实现，Native |
-| 流式拆包/粘包 | 已实现 |
-| 用户名/密码认证 | 已实现 |
-| Enhanced Authentication 报文 | 已实现，应用层流程需自行驱动 |
-| 主题过滤器匹配 | 已实现，含共享订阅与系统主题规则 |
-| 持久会话恢复 | 已实现，Session Present 驱动保留或清理状态 |
-| Receive Maximum 流控 | 已实现 |
-| Maximum Packet Size 限制 | 已实现 |
-| Keep Alive 调度 | 已实现，可由传输循环驱动 |
-| 重连退避策略 | 已实现；自动传输重连循环待集成 |
-| 离线发送队列 | 已实现有界队列；自动排空待传输层集成 |
-| WebSocket 传输 | 规划中 |
-| 浏览器网络客户端 | 规划中；协议核心已支持 JS/Wasm |
-| MQTT 3.1.1 | 非目标 |
-| Broker 实现 | 非目标 |
-
-逐报文能力见 [`docs/PROTOCOL_SUPPORT.md`](docs/PROTOCOL_SUPPORT.md)。
-
-## 测试与质量门禁
+## 安装与验证
 
 ```bash
-# 跨平台严格检查与测试
+moon update
 moon check --target all --deny-warn
 moon test --target all --deny-warn
-
-# Native 客户端和模拟 Broker 端到端测试
-moon test --target native
-
-# 格式与公开接口
 moon fmt --check
 moon info
+moon run examples/release_gate
+```
 
-# 本地有 Mosquitto 时执行真实 Broker 往返
+需要验证参考 Native 适配器时：
+
+```bash
+moon test --target native
 moon run --target native integration/mosquitto
 ```
 
-测试包含规范字节向量、所有控制报文往返、属性约束、非法报文、UTF-8、拆包/粘包、
-客户端生命周期、QoS 1/2 状态机、连接限制、断线恢复以及 TCP 端到端流程。当前
-Wasm、Wasm-GC 和 JavaScript 各 37/37 测试通过，Native 38/38 测试通过；协议核心
-语句覆盖率为 `1315/1623`（81.0%）。
+公开仓库：<https://github.com/lkjhgbnm097/moonmqtt>
 
-## 已知边界
+## 明确非目标
 
-- `moonbitlang/async` 的 API 仍在演进，Native 网络包可能需要随工具链升级调整；
-- 当前客户端适合单任务顺序驱动；多任务同时调用同一个客户端尚未提供并发保护；
-- 可靠连接所需的重连策略、会话恢复和离线队列已经提供，但 Native 客户端尚未集成
-  自动重连循环和队列自动排空；
-- TLS 依赖系统信任根；`--insecure` 不应在生产环境使用；
-- 本项目尚未通过官方 MQTT 5.0 一致性认证，因此不会宣称完全合规。
-
-安全问题请按照 [`SECURITY.md`](SECURITY.md) 私下报告。
+- 不重新实现完整通用 MQTT 客户端；
+- 不实现 MQTT Broker、设备管理云平台或 Web 管理后台；
+- 不替代 Broker ACL、TLS 身份认证或组织级权限系统；
+- 首版不解析 JSON Schema，不保存含业务载荷的审计日志；
+- 首版策略由 MoonBit API 构造，配置文件加载器列入后续版本；
+- 未完成一致性认证前不宣称完全兼容所有 Broker。
 
 ## 项目文档
 
-- [参赛项目提案](docs/PROPOSAL.zh-CN.md)
+- [参赛项目申报书](docs/PROPOSAL.zh-CN.md)
+- [差异化与同类项目审计](docs/DIFFERENTIATION.md)
 - [架构设计](docs/ARCHITECTURE.md)
 - [协议支持矩阵](docs/PROTOCOL_SUPPORT.md)
 - [演示与答辩脚本](docs/DEMO_SCRIPT.zh-CN.md)
 - [路线图](docs/ROADMAP.md)
-- [参赛与发布检查表](docs/COMPETITION_CHECKLIST.zh-CN.md)
 - [质量报告](docs/QUALITY_REPORT.md)
-- [公开开发日志](docs/DEVELOPMENT_LOG.zh-CN.md)
-- [项目状态](PROJECT_STATUS.md)
-- [贡献指南](CONTRIBUTING.md)
+- [开发日志](docs/DEVELOPMENT_LOG.zh-CN.md)
 
-## 标准与致谢
+## 标准、来源与许可证
 
-实现以 [OASIS MQTT Version 5.0](https://docs.oasis-open.org/mqtt/mqtt/v5.0/mqtt-v5.0.html)
-为规范依据；网络层使用 Apache-2.0 许可的
-[`moonbitlang/async`](https://github.com/moonbitlang/async)。具体归属见 [`NOTICE`](NOTICE)。
+协议字段和行为依据 [OASIS MQTT Version 5.0](https://docs.oasis-open.org/mqtt/mqtt/v5.0/mqtt-v5.0.html)。
+网络验证适配器使用 Apache-2.0 许可的
+[`moonbitlang/async`](https://github.com/moonbitlang/async)。第三方边界与来源见 [`NOTICE`](NOTICE)。
 
-## 许可证
-
-Apache License 2.0。详见 [`LICENSE`](LICENSE)。
+本项目采用 Apache License 2.0，详见 [`LICENSE`](LICENSE)。

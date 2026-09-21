@@ -1,83 +1,86 @@
-# MoonMQTT 演示与答辩脚本
+# MoonMQTT Guard 演示与答辩脚本
 
 ## 目标
 
-在 6 至 8 分钟内证明项目不是静态界面，而是一套可复用、可运行、可验证的 MQTT 5
-协议基础设施。
+在 5 至 7 分钟内证明项目能阻止“协议合法但业务上不应发布”的 MQTT 5 消息，并清楚说明
+它与现有 MoonBit codec、客户端和 Broker 的互补关系。
 
 ## 演示准备
 
-1. 本地启动 Mosquitto 2.x，监听 `127.0.0.1:1883`；
-2. 打开两个终端；
-3. 在仓库根目录执行 `moon test --target native`，确认全部测试通过。
+在仓库根目录执行：
+
+```bash
+moon update
+moon test --target all --deny-warn
+```
+
+主演示不依赖 Broker 或网络，避免现场环境影响治理结果。
 
 ## 演示流程
 
-### 1. 报文分析器（约 1 分钟）
+### 1. 展示已存在的生态能力（约 45 秒）
+
+打开 `docs/DIFFERENTIATION.md`，指出 MoonBit 已有 MQTT 3.1.1 codec、功能完整的异步客户端
+和 Broker。本项目不再把 TCP/TLS、重连或 QoS 当成创新点。
+
+### 2. 运行发布门禁（约 2 分钟）
 
 ```bash
-moon run --target native cmd/main -- inspect "30 06 00 01 61 00 68 69"
+moon run examples/release_gate
 ```
 
-说明输出中识别出了 Topic `a`、Payload `hi`、QoS 0 和空属性列表。把固定报头 Flags
-改成非法值，展示结构化错误而非崩溃。
+第一条遥测符合 `factory-telemetry-v1`，返回 `Permit`。第二条仍是合法 MQTT PUBLISH，
+但同时违反 Retain、Content Type、用途、Schema 与有效期要求；门禁一次返回全部违规项。
 
-### 2. 真实 Broker 发布订阅（约 2 分钟）
+强调三个行为：
 
-终端 A：
+- 未登记 Topic 默认拒绝；
+- 配置错误与普通消息拒绝分开返回；
+- 判定不依赖网络、Broker 或系统时间，可在 Native/JS/Wasm 复现。
+
+### 3. 展示命令可追踪性（约 1 分钟）
+
+打开 `release_gate_test.mbt` 中的 `device-command-v1` 测试。说明远程命令必须同时包含
+Response Topic 与 Correlation Data，否则在发送前拒绝，避免产生无法对账的操作。
+
+### 4. 展示跨目标质量门禁（约 1 分钟）
 
 ```bash
-moon run --target native cmd/main -- subscribe \
-  --host 127.0.0.1 --qos 2 --count 1 "factory/+/temperature"
+moon check --target all --deny-warn
+moon test --target all --deny-warn
+moon fmt --check
+moon info
 ```
 
-终端 B：
+说明治理核心与协议核心共用测试：Wasm、Wasm-GC、JavaScript 各 43 项，Native 44 项。
 
-```bash
-moon run --target native cmd/main -- publish \
-  --host 127.0.0.1 --qos 2 \
-  "factory/line-1/temperature" "23.4"
-```
+### 5. 架构与组合方式（约 1 分钟）
 
-强调连接、订阅、QoS 2 四阶段握手和消息交付都由 MoonBit 代码完成。
+展示 `docs/ARCHITECTURE.md`：应用先调用 Release Gate，只有 `Permit` 才进入现有 MQTT client；
+Broker 继续负责身份、ACL、路由与会话。门禁补充的是内容契约，不取代现有基础设施。
 
-### 3. 自动测试（约 1 分钟）
+### 6. 可选互操作备用演示（约 1 分钟）
 
-```bash
-moon test --target wasm
-moon test --target native
-```
-
-解释 Wasm 测试验证协议核心的可移植性，Native 测试额外启动内存内模拟 Broker，验证
-真实 TCP 字节流。
-
-### 4. 架构和关键决策（约 2 分钟）
-
-展示 `docs/ARCHITECTURE.md`：
-
-- 编解码器不依赖网络；
-- 状态机返回响应和应用事件；
-- NativeClient 只负责搬运字节；
-- QoS 2 消息在 PUBREL 时才交付，重复 PUBLISH 不会重复进入应用。
-
-### 5. 生态价值和路线图（约 1 分钟）
-
-说明 MQTT 是工业物联网、智能家居和边缘计算常用协议；MoonMQTT 为 MoonBit 补上可直接
-连接现有 Broker 的基础库。后续重点是重连、流控、WebSocket 和多 Broker 兼容矩阵。
+若现场有 Mosquitto，可运行参考适配器验证允许后的报文仍能正常传输。该部分只是兼容性证据，
+不是项目差异化主线。
 
 ## 常见问答
 
-**为什么不直接绑定 C MQTT 库？**
+**与 Mooncakes 上的 MQTT 客户端有什么区别？**
 
-协议核心使用纯 MoonBit，能够在 Wasm/JS 复用、做确定性测试，也更能验证 MoonBit
-处理二进制协议和状态机的能力。
+客户端解决连接、重连和可靠发送；MoonMQTT Guard 在调用客户端前判断消息是否满足用途、Schema、
+大小、QoS、Retain、TTL 和关联信息契约。两者是上层治理与下层传输的组合关系。
 
-**是否完全符合 MQTT 5.0？**
+**Broker ACL 不能解决吗？**
 
-项目严格参照 OASIS 规范并进行了大量校验，但尚未完成官方一致性认证，因此不做完全
-合规承诺。
+ACL 主要约束“谁能发哪个 Topic”。门禁还检查一条具体消息的 MQTT 5 元数据和发布语义，并能在
+数据离开设备或网关前拒绝。
 
-**与一个简单 Demo 有什么区别？**
+**为什么使用 MoonBit？**
 
-项目包含完整报文模型、属性规则、流式解析、QoS 状态机、TCP/TLS、CLI、跨目标测试和
-真实 Broker 集成入口，可作为其他 MoonBit 应用的依赖。
+同一份无 I/O 判定核心可编译到 Native、JavaScript 和 WebAssembly，适合边缘网关、CI 与浏览器
+审计共享规则，同时能复用 MoonBit 实现的 MQTT 5 类型和 Topic Filter 语义。
+
+**是否是完整 DLP 或 MQTT 一致性产品？**
+
+不是。当前是可运行的消息契约 MVP，不替代身份认证、组织级 DLP 或官方一致性认证。

@@ -1,12 +1,21 @@
-# MoonMQTT 架构设计
+# MoonMQTT Guard 架构设计
 
 ## 设计目标
 
-MoonMQTT 将 MQTT 协议语义与平台 I/O 分离，确保协议核心可以独立测试、复用和移植。
-网络读取到的每个字节都必须经过同一条解析路径；模拟测试、Native 客户端和未来的
-WebSocket 传输不得各自实现一套协议逻辑。
+MoonMQTT Guard 将“业务消息是否允许发布”、MQTT 协议语义和平台 I/O 分为三个边界。
+发布门禁必须可以脱离网络独立测试；协议适配负责把 MQTT 5 字段变成强类型数据；参考
+Native 客户端只验证允许后的消息能够与现有 Broker 互操作。
 
 ## 模块边界
+
+### 发布治理层
+
+`release_gate.mbt` 定义 `PublishContract`、`ReleaseDecision` 和稳定的违规枚举。应用把
+`PublishPacket` 交给门禁，只有 `Permit` 才继续调用现有 MQTT 客户端。
+
+契约按数组顺序采用首个匹配项，因此优先级显式、可测试。非法 Topic Filter 属于配置错误，
+返回 `MqttError`；没有匹配契约或违反消息约束属于正常拒绝，返回包含全部问题的 `Deny`。
+门禁不读取网络、文件、系统时间，也不保存业务载荷。
 
 ### 协议数据模型
 
@@ -83,7 +92,7 @@ QoS 2 接收消息先暂存，重复 PUBLISH 只重新发送 PUBREC；收到 PUB
 - `responses`：必须写回网络的协议报文；
 - `events`：交给应用处理的连接、消息、确认、认证或断线事件。
 
-### Native 传输
+### Native 参考传输
 
 `native/` 使用 `moonbitlang/async/socket` 和 `moonbitlang/async/tls`。`NativeClient`
 只负责：
@@ -93,9 +102,15 @@ QoS 2 接收消息先暂存，重复 PUBLISH 只重新发送 PUBREC；收到 PUB
 3. 发送状态机产生的响应；
 4. 向调用方返回应用事件。
 
-Native 层不重新解释 QoS 或属性语义。
+Native 层不重新解释 QoS 或属性语义，也不是项目的差异化产品定位。生产环境可以把门禁接到
+现有 MoonBit MQTT 客户端或其他传输实现之前。
 
 ## 不变量
+
+- 未命中任何发布契约的 Topic 默认拒绝；
+- 同一契约与报文在所有目标产生相同、顺序稳定的违规列表；
+- 门禁配置错误不得伪装成普通消息拒绝；
+- 发布治理核心不得依赖网络和系统时间；
 
 - 包标识符只能取 1 至 65535，且未确认前不得重复分配；
 - QoS 0 PUBLISH 不携带包标识符，也不设置 DUP；
@@ -107,5 +122,5 @@ Native 层不重新解释 QoS 或属性语义。
 
 ## 扩展点
 
-未来传输只需实现“读字节、写完整字节、关闭”三项能力。WebSocket、WASI socket 或
-嵌入式 HAL 不需要修改编解码与会话状态机。
+优先扩展方向是策略配置加载、重叠契约诊断、无载荷审计事件和现有客户端 adapter。新增传输
+协议或完整 Broker 不属于差异化路线；参考传输仍可用于兼容性验证。

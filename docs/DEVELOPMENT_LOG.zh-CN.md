@@ -1,7 +1,19 @@
-# MoonMQTT 公开开发日志
+# MoonMQTT Guard 公开开发日志
 
 本日志将公开 Git 提交与可验证能力对应起来。它只记录已经进入仓库、能够通过自动测试
 复现的工作，不把空提交或仅改时间戳计入开发成果。
+
+## 2026-09-21：差异化重构
+
+- 检索 GitHub 上直接相关的 MoonBit MQTT codec、通用客户端和 Broker；
+- 将参赛定位从通用客户端调整为 MQTT 5 消息契约与发布治理门禁；
+- 新增 `PublishContract`、完整违规列表和未登记 Topic 默认拒绝；
+- 新增用途/Schema、Content Type、TTL、QoS、Retain、载荷大小和请求关联约束；
+- 新增 `examples/release_gate`、四组门禁测试和差异化审计；
+- 重写 README、申报书、架构、路线图和答辩材料。
+
+本轮使用 `moon 0.1.20260920` 验证：全目标严格检查通过；Wasm、Wasm-GC、JavaScript
+各 43/43，Native 44/44 测试通过。
 
 ## 2026-09-17：0.1.0-rc MVP
 

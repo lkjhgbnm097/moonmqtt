@@ -1,1 +1,4 @@
-
+// MoonBit 0.1.20260920 warns when derived trait methods are also exposed as
+// regular methods. This package uses Eq/Debug only through their traits, so the
+// legacy method promotion is not part of the public API.
+warnings = "-implicit_impl_as_method"

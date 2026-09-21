@@ -1,11 +1,11 @@
-# MoonMQTT 0.1.0-rc 质量报告
+# MoonMQTT Guard 0.1.0-rc 质量报告
 
-本报告记录 2026-09-17 至 2026-09-19 完成的本地可重复质量门禁。
+本报告记录截至 2026-09-21 完成的本地可重复质量门禁。
 
 ## 验证环境
 
 - 操作系统：Windows；
-- MoonBit：`moon 0.1.20260915 (2e1a46d 2026-09-15)`；
+- MoonBit：`moon 0.1.20260920 (914d7da 2026-09-20)`；
 - 核心目标：Wasm、Wasm-GC、JavaScript、Native；
 - 网络测试：进程内模拟 Broker；真实 Mosquitto 由 CI 任务执行。
 
@@ -20,6 +20,7 @@ moon build --target native --release
 moon coverage analyze -p moonmqtt/moonmqtt
 moon coverage report -f summary -p moonmqtt/moonmqtt
 moon run examples/codec
+moon run examples/release_gate
 moon run --target native cmd/main -- inspect "30 06 00 01 61 00 68 69"
 ```
 
@@ -28,13 +29,13 @@ moon run --target native cmd/main -- inspect "30 06 00 01 61 00 68 69"
 | 门禁 | 结果 |
 |---|---|
 | 格式与接口生成 | 通过；连续两次 `moon info` 结果一致 |
-| Wasm 严格检查/测试 | 通过，37/37 |
-| Wasm-GC 严格检查/测试 | 通过，37/37 |
-| JavaScript 严格检查/测试 | 通过，37/37 |
-| Native 严格检查/测试 | 通过，38/38 |
+| Wasm 严格检查/测试 | 通过，43/43 |
+| Wasm-GC 严格检查/测试 | 通过，43/43 |
+| JavaScript 严格检查/测试 | 通过，43/43 |
+| Native 严格检查/测试 | 通过，44/44 |
 | Native release 构建 | 通过；第三方 async C 源码有一条 Windows 宏重定义警告 |
-| 协议核心覆盖率 | 1315/1623，81.0% |
-| 纯协议示例 | 通过 |
+| 核心包覆盖率 | 1395/1723，81.0% |
+| 纯协议与发布门禁示例 | 通过 |
 | CLI 十六进制解析 | 通过 |
 | 真实 Mosquitto 往返 | 本机无 Mosquitto；CI 已配置，公开仓库运行后确认 |
 
@@ -42,6 +43,10 @@ moon run --target native cmd/main -- inspect "30 06 00 01 61 00 68 69"
 Mooncakes 凭据，因此发布预检保留到项目所有者登录后执行。
 
 ## 测试重点
+
+- 发布契约允许路径、复合违规、未登记 Topic 默认拒绝；
+- Payload/QoS/Retain/Content Type/User Property/Message Expiry 联合约束；
+- 命令消息 Response Topic 与 Correlation Data 完整性；
 
 - MQTT Variable Byte Integer 规范向量与非法编码；
 - 15 类控制报文编解码往返；

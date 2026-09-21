@@ -1,70 +1,55 @@
-# MoonMQTT 参赛与发布检查表
+# MoonMQTT Guard 参赛与发布检查表
 
-本表把“代码完成”和“账号相关的外部发布”分开。前者可在本地独立验收；后者需要项目
-所有者使用自己的 GitHub、Mooncakes 和赛事账号完成。
+## 一、差异化作品本体
 
-## 一、作品本体
+- [x] 主定位改为 MQTT 5 消息契约与发布治理，不再申报通用客户端；
+- [x] 检索并记录直接相关的 codec、客户端和 Broker；
+- [x] 解释与近期 Mooncakes MQTT 客户端的上下层组合关系；
+- [x] 实现 Topic、Payload、QoS、Retain、Content Type、User Property 和 TTL 契约；
+- [x] 实现 request/response 关联信息门禁；
+- [x] 实现未登记 Topic 默认拒绝和完整违规列表；
+- [x] 提供无 Broker 的差异化演示与测试；
+- [x] 重写 README、申报书、架构、路线图和答辩脚本。
 
-- [x] 明确项目痛点、目标用户、使用场景与非目标；
-- [x] 完成 MQTT 5.0 全部控制报文的数据模型与编解码；
-- [x] 完成属性、UTF-8、报文标志与剩余长度校验；
-- [x] 完成流式拆包、粘包处理；
-- [x] 完成 QoS 0/1/2 客户端会话状态机；
-- [x] 完成 Native TCP/TLS 客户端；
-- [x] 完成命令行抓包解析、发布和订阅功能；
-- [x] 提供纯协议、Native 发布和真实 Broker 集成示例；
-- [x] 提供单元测试、模拟 Broker 端到端测试和 Mosquitto 集成入口；
-- [x] 提供跨目标与跨操作系统 CI 配置；
-- [x] 提供 README、架构、支持矩阵、路线图、安全策略和许可证。
+## 二、代码质量门禁
 
-## 二、发布前本地门禁
-
+- [x] `moon check --target all --deny-warn` 通过；
+- [x] `moon test --target all --deny-warn` 通过；
+- [x] Wasm/Wasm-GC/JavaScript 各 43/43，Native 44/44；
 - [x] `moon fmt --check` 通过；
-- [x] `moon info` 可重复生成公开接口且工作区无意外变化；
-- [x] Wasm、JavaScript、Native 三个目标的检查和测试全部通过；
-- [x] Native release 构建通过；
-- [x] CLI `inspect` 和纯协议示例实跑通过；
-- [ ] 连接真实 Mosquitto 的订阅/发布往返通过；
-- [x] 检查仓库中没有密钥、账号、绝对路径和临时构建产物。
+- [x] `moon info` 已更新公开接口；
+- [x] `moon run examples/release_gate` 实跑通过；
+- [x] 仓库忽略工具链、构建产物、密钥和本地环境文件；
+- [ ] 推送后 GitHub Actions 全部通过。
 
-完成门禁后，在 `PROJECT_STATUS.md` 记录工具链版本、命令和结果。
+## 三、公开发布
 
-## 三、公开发布（需要项目所有者账号）
+- [x] 公开仓库为 <https://github.com/lkjhgbnm097/moonmqtt>；
+- [ ] GitHub About 改为“MQTT 5 message-contract and publish-governance gate”；
+- [ ] 确认默认分支 `main` 和公开可见性；
+- [ ] 确认最新提交的 GitHub Actions；
+- [ ] 配置 Mooncakes 命名空间与发布凭据；
+- [ ] 在干净目录安装并运行发布包；
+- [ ] 创建版本标签和 Release。
 
-- [ ] 确认 GitHub 组织或个人账号、仓库名和公开可见性；
-- [ ] 创建 GitHub 仓库并把默认分支设为 `main`；
-- [ ] 将真实仓库 URL 写入 `moon.mod`，并在 README 中加入 CI、许可证和版本徽章；
-- [ ] 推送源码，确认全部 GitHub Actions 通过；
-- [ ] 启用 GitHub Private Vulnerability Reporting；
-- [ ] 确认 Mooncakes 包名/命名空间可用；
-- [ ] 使用所有者令牌登录，先执行发布预检，再发布 `0.1.0`；
-- [ ] 在干净目录执行 `moon add moonmqtt/moonmqtt@0.1.0` 安装验证；
-- [ ] 创建 `v0.1.0` 标签和 GitHub Release，附上 Changelog 与安装命令。
+不得提交 GitHub Token、Mooncakes Token、Broker 密码、证书私钥或 `.env` 文件。
 
-不得把 GitHub Token、Mooncakes Token、Broker 密码、证书私钥或 `.env` 文件提交到仓库。
+## 四、演示与报名
 
-## 四、演示材料
+- [ ] 按 `docs/DEMO_SCRIPT.zh-CN.md` 录制 5～7 分钟演示；
+- [ ] 首先演示 Release Gate，而不是 TCP/TLS 或发布订阅；
+- [ ] 同屏展示一个 Permit 和一个多项 Deny；
+- [ ] 展示 `docs/DIFFERENTIATION.md` 的同类项目矩阵；
+- [ ] 报名项目名填写“MoonMQTT Guard——基于 MoonBit 的 MQTT 5 消息契约与发布治理门禁”；
+- [ ] 上传最新版 `docs/PROPOSAL.zh-CN.md`；
+- [ ] 填写成员、联系方式、视频和 Mooncakes 链接；
+- [ ] 从未登录窗口确认仓库和文档可访问；
+- [ ] 保存表单回执与对应 commit SHA。
 
-- [ ] 按 `docs/DEMO_SCRIPT.zh-CN.md` 录制 3～5 分钟演示；
-- [ ] 同屏展示 Broker、订阅端、发布端和 QoS 结果；
-- [ ] 展示至少一条非法报文被结构化拒绝的案例；
-- [ ] 准备架构图、核心能力表、测试结果和项目二维码；
-- [ ] 对照赛事要求核验视频格式、文件大小、提交字段和公开链接权限；
-- [ ] 提交前从无登录的浏览器窗口验证仓库、视频和文档链接均可访问。
+## 五、文案红线
 
-## 五、赛事提交
-
-- [ ] 将 `docs/PROPOSAL.zh-CN.md` 压缩为报名表所需长度；
-- [ ] 填写项目名称、赛道、成员、联系方式和公开仓库地址；
-- [ ] 填写 Mooncakes 包地址、演示视频、项目说明和许可证；
-- [ ] 明确原创范围：MoonMQTT 自研部分与 `moonbitlang/async` 依赖边界；
-- [ ] 只陈述已验证能力，不写“完全兼容”“生产级”或“官方认证”；
-- [ ] 提交后保存回执、最终表单截图和对应提交版本的 commit SHA。
-
-## 六、答辩前复核
-
-- [ ] 使用标签对应版本重新演示，不使用未提交的本地修改；
-- [ ] 准备无网络情况下的录屏和十六进制报文解析备用演示；
-- [ ] 能解释协议核心与网络层分离、QoS 2 去重、流式解码和错误边界；
-- [ ] 能说明当前限制，以及 0.2～0.4 路线为何没有伪装成已完成功能；
-- [ ] 准备“为什么使用 MoonBit”“实际应用价值”“与现有 SDK 的区别”三类问答。
+- 不再用“MoonBit 生态缺少 MQTT 客户端”作为立项依据；
+- 不把 TLS、重连、QoS、离线队列写成与现有客户端的差异；
+- 不写“完全兼容”“生产级”“官方认证”；
+- 明确协议适配底座、原创门禁逻辑和第三方依赖的边界；
+- 所有“已完成”必须能由公开代码、测试或演示复现。

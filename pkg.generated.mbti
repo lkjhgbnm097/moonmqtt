@@ -26,6 +26,10 @@ pub fn encode_packet(Packet) -> Result[Bytes, MqttError]
 
 pub fn encode_variable_byte_integer(Int) -> Result[Bytes, MqttError]
 
+pub fn evaluate_publish_contract(PublishContract, PublishPacket) -> Result[ReleaseDecision, MqttError]
+
+pub fn evaluate_publish_release(Array[PublishContract], PublishPacket) -> Result[ReleaseDecision, MqttError]
+
 pub fn topic_matches(String, String) -> Result[Bool, MqttError]
 
 // Errors
@@ -245,6 +249,21 @@ pub(all) struct PubResponsePacket {
   properties : Array[Property]
 } derive(Eq, @debug.Debug)
 
+pub(all) struct PublishContract {
+  name : String
+  topic_filter : String
+  max_payload_bytes : Int
+  maximum_qos : QoS
+  allow_retain : Bool
+  required_content_type : String?
+  required_user_properties : Array[UserPropertyRequirement]
+  require_message_expiry : Bool
+  maximum_message_expiry_secs : UInt?
+  require_response_topic : Bool
+  require_correlation_data : Bool
+} derive(Eq, @debug.Debug)
+pub fn PublishContract::new(String, String, max_payload_bytes? : Int, maximum_qos? : QoS, allow_retain? : Bool, required_content_type? : String?, required_user_properties? : Array[UserPropertyRequirement], require_message_expiry? : Bool, maximum_message_expiry_secs? : UInt?, require_response_topic? : Bool, require_correlation_data? : Bool) -> Self
+
 pub(all) struct PublishPacket {
   topic : String
   payload : Bytes
@@ -286,6 +305,25 @@ pub(all) struct ReconnectPolicy {
 pub fn ReconnectPolicy::allows_attempt(Self, Int) -> Bool
 pub fn ReconnectPolicy::delay_for_attempt(Self, Int, jitter_percent? : Int) -> Result[Int, MqttError]
 pub fn ReconnectPolicy::new(initial_delay_ms? : Int, max_delay_ms? : Int, multiplier? : Int, max_attempts? : Int) -> Result[Self, MqttError]
+
+pub(all) enum ReleaseDecision {
+  Permit(String)
+  Deny(String?, Array[ReleaseViolation])
+} derive(Eq, @debug.Debug)
+
+pub(all) enum ReleaseViolation {
+  NoMatchingContract(String)
+  PayloadTooLarge(Int, Int)
+  QoSAboveContract(QoS, QoS)
+  RetainedPublishForbidden
+  ContentTypeRequired(String)
+  ContentTypeMismatch(String, String)
+  UserPropertyRequired(String, String)
+  MessageExpiryRequired
+  MessageExpiryTooLong(UInt, UInt)
+  ResponseTopicRequired
+  CorrelationDataRequired
+} derive(Eq, @debug.Debug)
 
 pub(all) enum SessionEvent {
   ConnectedEvent(Bool, Array[Property])
@@ -332,6 +370,12 @@ pub(all) struct UnsubscribePacket {
   topic_filters : Array[String]
   properties : Array[Property]
 } derive(Eq, @debug.Debug)
+
+pub(all) struct UserPropertyRequirement {
+  name : String
+  value : String
+} derive(Eq, @debug.Debug)
+pub fn UserPropertyRequirement::new(String, String) -> Self
 
 pub(all) struct WillMessage {
   topic : String

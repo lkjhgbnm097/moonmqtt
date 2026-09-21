@@ -1,5 +1,24 @@
 # Changelog
 
+## Unreleased
+
+### Added
+
+- Added `PublishContract` and deterministic release-gate APIs for topic,
+  payload-size, QoS, Retain, Content Type, User Property, expiry, response-topic,
+  and correlation-data enforcement.
+- Added stable, machine-readable denial reasons that report every violation in
+  one decision.
+- Added a runnable `examples/release_gate` governance demonstration.
+- Added a public differentiation audit covering the existing MoonBit MQTT
+  codec, client, and broker projects.
+
+### Changed
+
+- Repositioned the project as **MoonMQTT Guard**, an MQTT 5 message-contract
+  and publish-governance layer. The native client remains a reference adapter,
+  not the project's primary product claim.
+
 All notable changes to MoonMQTT will be documented in this file. The project
 follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/) and intends to
 use semantic versioning after the first public release.
